@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#635bdb"><meta name="description" content="课栈：账号、课程与学习任务，一个简单的控制台。">
+  <title>课栈 · 学习控制台</title>
+  <link rel="icon" href="/static/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v=0.6.1"><script defer src="/static/app.js?v=0.6.1"></script>
+</head>
+<body>
+<svg class="symbols" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 5C9 3 5 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Zm0 0v15"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8m5 9v-2a7 7 0 0 0-4-6"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 2 3 3-1 3 2 3-1 2-3-1-3 2-2-2-3-3-1-1-3Z"/><circle cx="10.5" cy="11" r="3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8m0-13v6h-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6h.1M7 17h.1m5-11h5m-5 11h5"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6 18a5 5 0 1 1 1-10 6 6 0 0 1 11 2 4 4 0 1 1 0 8Z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-13 5 5-5 5m-7-5h12"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></symbol>
+</defs></svg>
+<aside class="sidebar">
+  <a class="brand" href="#overview"><img src="/static/mark.svg" alt=""><span>课栈<small>让学习井然有序</small></span></a>
+  <div class="workspace-label">我的工作空间 <span>PERSONAL</span></div>
+  <nav aria-label="主要导航">
+    <a href="#overview" data-view="overview" aria-label="学习概览" class="nav-item active"><svg><use href="#i-grid"/></svg><span class="nav-label">学习概览</span></a>
+    <a href="#courses" data-view="courses" aria-label="我的课程" class="nav-item"><svg><use href="#i-book"/></svg><span class="nav-label">我的课程</span> <span id="nav-course-count" class="nav-count">0</span></a>
+    <a href="#tasks" data-view="tasks" aria-label="运行任务" class="nav-item"><svg><use href="#i-play"/></svg><span class="nav-label">运行任务</span> <span id="nav-task-count" class="nav-count">0</span></a>
+    <a href="#accounts" data-view="accounts" aria-label="账号管理" class="nav-item"><svg><use href="#i-users"/></svg><span class="nav-label">账号管理</span></a>
+    <div class="nav-divider"></div>
+    <a href="#settings" data-view="settings" aria-label="运行设置" class="nav-item"><svg><use href="#i-settings"/></svg><span class="nav-label">运行设置</span></a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="private-note"><span class="mini-icon">↗</span><strong>在这台 Mac 上运行</strong><p>私有空间，安心管理。<br>关掉网页，任务继续。</p><a href="#settings">查看运行设置 <span>→</span></a></div>
+    <div class="server-status"><span class="status-light" id="connection-light"></span><span id="connection-label">正在连接本地应用</span><span class="version">v0.6.1 · macOS</span></div>
+  </div>
+</aside>
+<div class="shell">
+  <header class="topbar"><div class="breadcrumb">工作空间 <span>/</span> <strong id="breadcrumb-title">学习概览</strong></div><div class="topbar-right"><label class="current-account-switch">当前账号<select id="current-account" aria-label="切换学习账号"><option value="">请添加账号</option></select></label><span class="private-badge">macOS 本地版</span><button id="logout" class="icon-button" title="退出控制台" aria-label="退出控制台"><svg><use href="#i-logout"/></svg></button><div class="user-avatar">我</div></div></header>
+  <main id="main">
+    <div class="page-heading"><div><div class="eyebrow" id="page-eyebrow">你的学习，一目了然</div><h1 id="page-title">学习概览<span class="title-dot">.</span></h1><p id="page-description">把重复的操作交给课栈，把时间留给自己。</p></div><button class="button primary" data-action="add-account"><svg><use href="#i-plus"/></svg>添加账号</button></div>
+    <div id="connection-error" class="notice error hidden" role="status"></div>
+    <section id="view-overview" class="view">
+      <div class="welcome-banner"><div><div class="banner-tag"><svg><use href="#i-spark"/></svg> 简单三步，开始使用</div><h2>课程有安排，进度有着落。</h2><p>添加账号 → 同步课程 → 选择并开始，一处管理所有学习任务。</p><div class="banner-actions"><button class="button dark" data-action="browse">选择课程 <svg><use href="#i-arrow"/></svg></button><button class="text-button" data-action="demo">先体验演示 <span>↗</span></button></div></div><div class="banner-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="art-card card-back"><svg><use href="#i-book"/></svg><span>YOUR LEARNING SPACE</span></div><div class="art-card card-front"><span class="art-check">✓</span><div><strong>一切，井然有序</strong><small>你的课程正在向前</small></div><div class="art-lines"><i></i><i></i><i></i><i></i><i></i></div></div><span class="art-star">✳</span></div></div>
+      <div class="metrics" id="metrics"></div>
+      <div class="overview-grid"><section class="panel running-panel"><div class="section-heading"><h2>正在进行 <span id="active-total" class="soft-count">0</span></h2><a href="#tasks">全部任务 <span>↗</span></a></div><div id="overview-tasks"></div></section><section class="panel activity-panel"><div class="section-heading"><h2>运行动态</h2><span class="live-label"><i></i> 实时</span></div><div id="activity-list"></div><div class="activity-foot"><svg><use href="#i-server"/></svg><span>执行位置：这台 Mac</span></div></section></div>
+      <section class="course-section"><div class="section-heading"><div><h2 id="overview-course-title">当前账号的课程</h2><p>选择课程，安排下一段学习。</p></div><a href="#courses">查看全部课程 <span>↗</span></a></div><div id="overview-courses" class="course-grid"></div></section>
+      <footer>课栈 · 把课程管理变简单 <span>数据保存在这台 Mac 上</span></footer>
+    </section>
+    <section id="view-courses" class="view hidden"><div class="toolbar"><label class="search"><svg><use href="#i-search"/></svg><input id="course-search" placeholder="搜索课程或教师" aria-label="搜索课程"></label><select id="course-account" aria-label="课程所属账号"></select><button class="button secondary" data-action="sync"><svg><use href="#i-refresh"/></svg>同步课程列表</button><button class="button secondary" data-action="refresh-account-progress"><svg><use href="#i-refresh"/></svg>刷新任务点进度</button></div><div class="course-filters"><div class="filter-tabs" id="course-filters"><button class="selected" data-filter="all">全部课程</button><button data-filter="pending">待完成</button><button data-filter="completed">已完成</button></div><label class="check-label"><input id="select-all" type="checkbox">选择当前列表</label></div><div id="account-course-status" class="account-course-status" role="status"></div><div id="course-list" class="course-grid"></div><div id="selection-bar" class="selection-bar hidden"><span>已选择 <strong id="selected-count">0</strong> 门课程</span><div><span class="local-engine-label">在这台 Mac 后台运行</span><button class="button primary" id="start-selected"><svg><use href="#i-play"/></svg>开始所选课程</button></div></div></section>
+    <section id="view-tasks" class="view hidden"><div class="toolbar"><div class="filter-tabs" id="task-filters"><button data-filter="all">全部记录</button><button class="selected" data-filter="active">进行中</button><button data-filter="completed">已完成</button><button data-filter="attention">需处理</button></div><button class="button secondary" data-action="refresh"><svg><use href="#i-refresh"/></svg>刷新</button></div><div class="task-scope-toolbar"><label>账号<select id="task-account" aria-label="筛选任务账号"></select></label><label>课程<select id="task-course" aria-label="筛选任务课程"></select></label><span id="task-result-count"></span><button class="text-button" data-action="clear-task-filters">清除筛选</button></div><div id="task-list" class="task-list"></div></section>
+    <section id="view-accounts" class="view hidden"><div class="notice"><svg><use href="#i-users"/></svg>账号密码加密保存在本机。每门课程独立运行，支持多个账号同时使用。</div><div class="account-page-actions"><span>选择账号即可加载对应课程；已运行的任务会继续执行。</span><button class="button secondary" data-action="demo-new">添加演示账号</button></div><div id="account-list" class="account-grid"></div></section>
+    <section id="view-settings" class="view hidden"><div class="settings-grid"><section class="panel settings-card"><div class="setting-icon"><svg><use href="#i-server"/></svg></div><h2>macOS 本地执行</h2><p>所有账号的任务在这台 Mac 上独立运行。切换账号、切换页面和关闭网页都不会停止后台任务。</p><form id="runtime-form"><label>所有账号合计同时运行的课程数<select id="concurrency"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label><p class="field-help">默认同时运行 3 门，其余自动排队。暂停任务仍占用一个运行位置。</p><label>每门课程的任务点并发<select id="point-concurrency"><option value="1">1 · 串行（默认）</option><option value="2">2 · 试验性</option><option value="3">3 · 试验性</option></select></label><div class="notice compact experimental-notice">单课程多并发为试验性功能，不保证稳定。建议先用少量任务点测试；遇到平台验证或异常可调回 1。</div><p class="field-help">设置会应用到正在运行的课程，也可在任务详情单独切换 1／2／3。调小后已领取的任务正常结束，新任务按新上限派发；已确认完成或正被进程持有的任务点跳过。</p><button class="button primary" type="submit">保存设置</button></form></section><section class="panel settings-card"><div class="setting-icon"><svg><use href="#i-book"/></svg></div><h2>本地使用说明</h2><ol class="steps"><li>双击「启动课栈.command」，保持终端窗口运行。</li><li>在账号管理中选择账号，自动载入该账号的课程。</li><li>进入课程后点击「开始学习」，任务即加入后台队列。</li><li>在「运行任务」中查看所有账号，可按账号、课程和状态筛选。</li></ol><div class="notice compact">本地运行仍需联网访问学习通。Mac 睡眠、关机或关闭启动窗口会中断任务；无人值守运行任务会在下次启动后自动延迟恢复。</div></section><section class="panel settings-card quiz-settings-card"><div class="setting-icon"><svg><use href="#i-book"/></svg></div><h2>章节测验答题</h2><p>无人值守模式会自动重试并切换备用来源；暂未取得有效答案的任务点进入独立恢复队列，其余任务继续。题目、选项会发送给启用的服务。</p>
+<form id="quiz-settings-form">
+<label>运行模式<select name="mode"><option value="unattended">无人值守 · 自动重试</option><option value="assisted">辅助作答 · 等待网页填写</option></select></label>
+<label>首选答题来源<select name="provider" id="quiz-provider"><option value="TikuGo">GO 题库（可选 Token）</option><option value="TikuYanxi">言溪题库</option><option value="TikuLike">LIKE 题库（可启用识图）</option><option value="TikuAdapter">TikuAdapter</option><option value="AI">自有 AI 服务</option><option value="SiliconFlow">硅基流动</option><option value="manual">网页填写（辅助模式）</option></select></label>
+<label>备用来源（按此列表顺序使用，可多选）<select name="fallbacks" multiple size="6"><option value="TikuGo">GO 题库</option><option value="TikuYanxi">言溪题库</option><option value="TikuLike">LIKE 题库</option><option value="TikuAdapter">TikuAdapter</option><option value="AI">自有 AI 服务</option><option value="SiliconFlow">硅基流动</option></select></label>
+<p class="field-help">按住 ⌘ 选择多个。先填好备用来源的配置再切回首选来源；缺少凭据的来源不会被调用。GO 为内置题库入口，第三方服务可用性及答案正确率无法保证。</p>
+<div id="quiz-go-fields"><label>GO Authorization<input type="password" name="go_authorization" autocomplete="off" placeholder="可选，留空保留已保存值"></label></div>
+<div id="quiz-yanxi-fields" class="hidden"><label>言溪 Token<input type="password" name="tokens" autocomplete="off" placeholder="留空保留已保存值"></label></div>
+<div id="quiz-like-fields" class="hidden"><label>LIKE Token<input type="password" name="like_tokens" autocomplete="off" placeholder="多个 Token 用逗号分隔"></label><label>LIKE 模型（可选）<input name="likeapi_model"></label><label>图片题识别<select name="likeapi_vision"><option value="true">启用 LIKE 识图</option><option value="false">关闭</option></select></label></div>
+<div id="quiz-adapter-fields" class="hidden"><label>TikuAdapter 地址<input name="url" placeholder="https://你的题库地址"></label></div>
+<div id="quiz-ai-fields"><h3>AI 兜底</h3><label>题库未命中后自动尝试 AI<select name="auto_ai_fallback"><option value="true">启用（推荐）</option><option value="false">关闭</option></select></label><label>AI 图像输入<select name="ai_vision"><option value="true">启用（需要模型支持图片）</option><option value="false">关闭 · 仅文字</option></select></label><label>AI Base URL<input name="endpoint" id="quiz-endpoint" placeholder="https://你的服务地址/v1"></label><label>模型名称<input name="model" id="quiz-model"></label><label>API Key<input type="password" name="key" autocomplete="off" placeholder="留空保留已保存值"></label><p class="field-help">填写支持此协议的 AI 地址、模型与 API Key。仅本机服务可不填 Key。启用后无需再勾选备用来源，题库未命中或答案不匹配会自动回退。图片与 Word 内嵌图片可发送给支持图像输入的 AI；模型不支持图像时会报错并回退，不会只发图片链接冒充识别。</p></div>
+<div id="quiz-silicon-fields" class="hidden"><label>硅基流动 Key<input type="password" name="siliconflow_key" autocomplete="off"></label><label>模型<input name="siliconflow_model"></label><label>API 地址<input name="siliconflow_endpoint"></label></div>
+<label>每题每个题库／AI 的请求次数（含首次）<input type="number" name="attempts" min="1" max="3" value="1" required></label>
+<p class="field-help">默认 1 次：当前题库请求失败、未命中或答案格式无效，立即切换下一个已配置来源；题库均未取得有效答案时由 AI 兜底。可调整为 1–3 次，按次数上限尝试后再换源；已取得有效答案的题目不再重复请求。</p>
+<label>自动恢复次数上限（每个任务点／连接故障）<input type="number" name="max_retries" min="1" max="20"></label>
+<label>首次延迟重试间隔（秒）<input type="number" name="retry_delay" min="1" max="900"></label>
+<p class="field-help">请求次数按每道题、每个来源计算，AI 同样受此上限约束。失败任务点默认最多独立恢复 6 次，间隔递增至 15 分钟，其他点继续执行；达到上限的点隔离待处理，后台只读检查平台状态，不反复消耗 AI。登录或验证码仍需手动处理。已校验格式的答案缓存复用，题目或选项变化后失效。交卷响应不明确时只查记录，不重复提交，不自动重做已提交测验。配置在下次启动任务或自动重试时生效。</p>
+<p id="ai-readiness" class="field-help"></p><button class="button secondary" type="button" id="quiz-test-ai">测试 AI 连接</button><p id="quiz-test-result" class="field-help" role="status"></p><button class="button primary" type="submit">保存答题设置</button><span id="quiz-config-status" class="field-help"></span></form></section></div></section>
+  </main>
+</div>
+<dialog id="auth-dialog" class="auth-dialog"><div class="auth-logo"><img src="/static/mark.svg" alt="">课栈</div><div class="eyebrow">你的私人学习工作空间</div><h2>欢迎回来。</h2><p>输入本地启动窗口中的访问口令，<br>打开你的课程控制台。</p><form id="auth-form"><label>访问口令<input name="token" type="password" required placeholder="粘贴控制台访问口令" autocomplete="current-password" autofocus></label><div id="auth-error" class="form-error" role="alert"></div><button class="button primary" type="submit">进入工作空间 <svg><use href="#i-arrow"/></svg></button></form><small>首次使用？双击「启动课栈.command」即可启动。<br>口令也保存在本机的 .data/access-token 文件中。</small></dialog>
+<dialog id="account-dialog"><div class="dialog-heading"><div><span class="eyebrow">连接你的学习通</span><h2>添加学习账号</h2></div><button class="icon-button" data-close="account-dialog" aria-label="关闭"><svg><use href="#i-close"/></svg></button></div><form id="account-form"><label>账号备注<input name="name" required maxlength="50" placeholder="例如：我的主账号" autocomplete="off"></label><label>手机号 / 学习通账号<input name="username" required maxlength="100" placeholder="请输入账号" autocomplete="username"></label><label>密码<input name="password" type="password" required maxlength="200" placeholder="请输入学习通密码" autocomplete="current-password"></label><p class="field-help">保存后点击「同步课程」验证登录并读取课程。</p><div class="form-error" id="account-error" role="alert"></div><div class="dialog-actions"><button type="button" class="button secondary" data-close="account-dialog">取消</button><button class="button primary" type="submit">保存账号</button></div></form></dialog>
+<dialog id="password-dialog"><div class="dialog-heading"><h2>更新账号密码</h2><button class="icon-button" data-close="password-dialog" aria-label="关闭"><svg><use href="#i-close"/></svg></button></div><form id="password-form"><input type="hidden" name="accountId"><label>新的学习通密码<input name="password" type="password" required maxlength="200" autocomplete="new-password"></label><div class="dialog-actions"><button class="button primary" type="submit">保存密码</button></div></form></dialog>
+<dialog id="course-dialog" class="course-dialog"><div class="dialog-heading"><div><span class="eyebrow">课程空间</span><h2 id="course-detail-title"></h2></div><button class="icon-button" data-close="course-dialog" aria-label="关闭课程"><svg><use href="#i-close"/></svg></button></div><div id="course-detail"></div></dialog>
+<dialog id="task-dialog" class="task-dialog"><div class="dialog-heading"><div><span class="eyebrow">任务详情</span><h2 id="detail-title"></h2></div><button class="icon-button" data-close="task-dialog" aria-label="关闭"><svg><use href="#i-close"/></svg></button></div><div id="task-detail"></div></dialog>
+<div id="toast" class="toast hidden" role="status"></div>
+</body></html>
