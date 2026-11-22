@@ -51,7 +51,7 @@ def main():
                     z.write(path, path.relative_to(stage))
         with output.open("rb") as f:
             digest = hashlib.file_digest(f, "sha256").hexdigest()
-        Path(str(output) + ".sha256").write_text(f"{digest}  {output.name}\n", encoding="ascii")
+        Path(str(output) + ".sha256").write_text(f"{digest}  {output.name}\n", encoding="ascii", newline="\n")
 
 
 if __name__ == "__main__":
