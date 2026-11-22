@@ -27,10 +27,11 @@ def main():
         python = payload / "python"
         env = {**os.environ, "UV_PYTHON_INSTALL_DIR": str(work / "cpython")}
         subprocess.run(["uv", "python", "install", "--no-bin", "3.13"], env=env, check=True)
-        exe = subprocess.check_output(["uv", "python", "find", "--system", "--managed-python", "3.13"], env=env, text=True).strip()
-        if not Path(exe).resolve().is_relative_to(work):
-            sys.exit("Expected isolated managed Python")
-        shutil.copytree(Path(exe).parent, python, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        runtimes = [p.parent for p in (work / "cpython").rglob("python.exe")
+                    if (p.parent / "Lib/os.py").is_file()]
+        if len(runtimes) != 1:
+            raise RuntimeError(f"Expected one managed runtime, found {runtimes}")
+        shutil.copytree(runtimes[0], python, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         req = work / "requirements.txt"
         subprocess.run(["uv", "export", "--frozen", "--no-dev", "--no-emit-project", "-o", str(req)], stdout=subprocess.DEVNULL, check=True)
         subprocess.run(["uv", "pip", "install", "--python", str(python / "python.exe"), "--target", str(python / "Lib/site-packages"), "-r", str(req)], check=True)
