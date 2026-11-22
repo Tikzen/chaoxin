@@ -277,7 +277,7 @@ def sync_courses(account_id: str):
             result = subprocess.run(worker_command('--study-scan-id=' + account_id),
                 input=json.dumps(payload), text=True, encoding="utf-8", capture_output=True, cwd=directory, timeout=100)
         except subprocess.TimeoutExpired:
-            raise HTTPException(504, "同步超时，请检查这台 Mac 到学习通的网络")
+            raise HTTPException(504, "同步超时，请检查这台电脑 到学习通的网络")
         if result.returncode:
             state = store.read_json(__import__("pathlib").Path(directory) / "state.json", {})
             store.execute("UPDATE accounts SET status='attention' WHERE id=?", (account_id,))
@@ -322,7 +322,7 @@ class TaskBody(BaseModel):
 @app.post("/api/tasks", status_code=201)
 def create_tasks(body: TaskBody):
     if body.engine != "server":
-        raise HTTPException(400, "本地版仅支持在这台 Mac 上执行任务")
+        raise HTTPException(400, "本地版仅支持在这台电脑 上执行任务")
     created = []
     with manager.lock, store.db() as conn:
         for course_id in dict.fromkeys(body.course_ids):

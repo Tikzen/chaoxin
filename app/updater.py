@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
-from pathlib import PureWindowsPath
+import ntpath
 import zipfile
 from pathlib import Path
 
@@ -134,7 +134,7 @@ def _safe_extract(archive_path, destination):
             parts = name.split("/")
             if (not name or (parts[0] != "payload" and name != "Chaoxin.exe")
                 or any(not part or part in (".", "..") or part.endswith((".", " "))
-                       or PureWindowsPath(part).is_reserved() or re.search(r'[<>:"|?*\\\x00-\x1f]', part)
+                       or ntpath.isreserved(part) or re.search(r'[<>:"|?*\\\x00-\x1f]', part)
                        for part in parts)
                 or info.external_attr >> 28 == 10 or name.casefold() in found):
                 raise ValueError("更新包包含不安全的路径")
