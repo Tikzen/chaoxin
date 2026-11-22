@@ -160,7 +160,7 @@ class PointPool:
                 child['session_cookies'] = (self.root / 'cookies.txt').read_text()
             child_args = ['--study-task-id=' + str(self.payload.get('task_id', '')),
                           '--study-unit-id=' + str(unit['id'])]
-            options = worker_popen_options()
+            options = worker_popen_options() if os.name == "nt" else {}
             if os.name != 'nt':
                 options['pass_fds'] = (descriptor,)
             process = subprocess.Popen(worker_command(*child_args), cwd=path,

@@ -1,37 +1,44 @@
-"""Tiny console launcher for the self-contained Windows portable folder."""
-import json
+"""Stable bootstrap: every payload shares the portable folder's data directory."""
 import os
-from pathlib import Path
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 
-def main():
+def active(root):
+    try:
+        name = (root / ".updates/active").read_text(encoding="ascii").strip()
+    except FileNotFoundError:
+        return root / "payload"
+    if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]{12}", name):
+        raise ValueError("更新版本记录损坏")
+    return root / ".updates" / name / "payload"
+
+
+def launch():
     root = Path(sys.executable).resolve().parent
-    python = root / "python" / "python.exe"
-    entry = root / "run.py"
-    if not python.is_file() or not entry.is_file():
-        print("课栈文件不完整。请完整解压整个 Windows 绿色版文件夹后再运行。")
-        input("按 Enter 退出…")
-        return 1
-    try:
-        info = json.loads((root / "build-info.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        info = {}
-    environment = os.environ.copy()
-    environment["STUDY_PORTABLE_WINDOWS"] = "1"
-    environment["STUDY_LAUNCHER_PID"] = str(os.getpid())
-    if info.get("repository"):
-        environment["STUDY_GITHUB_REPOSITORY"] = info["repository"]
-    command = [str(python), "-X", "utf8", str(entry), *sys.argv[1:]]
-    try:
-        child = subprocess.Popen(command, cwd=root, env=environment)
-        return child.wait()
-    except (OSError, KeyboardInterrupt) as error:
-        print(f"启动课栈失败：{error}")
-        input("按 Enter 退出…")
-        return 1
+    env = {**os.environ, "STUDY_PORTABLE_WINDOWS": "1", "STUDY_PORTABLE_ROOT": str(root),
+           "STUDY_DATA_DIR": os.environ.get("STUDY_DATA_DIR") or str(root / ".data"),
+           "PYTHONNOUSERSITE": "1", "PYTHONUTF8": "1"}
+    env.pop("PYTHONHOME", None)
+    env.pop("PYTHONPATH", None)
+    # PyInstaller modifies the DLL search path for its own bootstrap.
+    import ctypes
+    ctypes.windll.kernel32.SetDllDirectoryW(None)
+    while True:
+        payload = active(root)
+        cmd = [str(payload / "python/python.exe"), "-X", "utf8", str(payload / "run.py"), *sys.argv[1:]]
+        result = subprocess.run(cmd, cwd=payload, env=env).returncode
+        if result != 75:
+            return result
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        sys.exit(launch())
+    except (OSError, ValueError) as exc:
+        print(f"启动失败，请确认绿色版已完整解压：{exc}")
+        if sys.stdin.isatty():
+            input("按 Enter 退出…")
+        sys.exit(1)

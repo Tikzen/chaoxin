@@ -1,18 +1,14 @@
 """Build a distributable without local accounts, keys, logs or virtualenvs."""
 import hashlib
+import subprocess
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "dist" / "chaoxin-macos.zip"
 OUTPUT.parent.mkdir(exist_ok=True)
-roots = ["app", "static", "scripts", "vendor", "tests", "docs", ".github"]
-files = [ROOT / name for name in ["README.md", "LICENSE", "pyproject.toml", "uv.lock", ".gitignore",
-          "run.py", "启动课栈.command"]]
-for name in roots:
-    files.extend(path for path in (ROOT / name).rglob("*") if path.is_file()
-                 and "__pycache__" not in path.parts and path.suffix not in (".pyc", ".log")
-                 and path.name not in {"windows-startup.ps1", "preview.png"})
+files = [ROOT / name for name in subprocess.check_output(
+    ["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0") if name]
 with zipfile.ZipFile(OUTPUT, "w", compression=zipfile.ZIP_DEFLATED) as archive:
     for file in sorted(files):
         archive.write(file, Path("chaoxin") / file.relative_to(ROOT))

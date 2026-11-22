@@ -455,7 +455,7 @@ def main():
         reporter.stop.set()
         Path("cookies.txt").unlink(missing_ok=True)
         Path("chaoxing.log").unlink(missing_ok=True)
-        if payload.get('claim_fd') is not None:
+        if payload.get('claim_fd', -1) >= 0:
             os.close(payload['claim_fd'])
     return code
 

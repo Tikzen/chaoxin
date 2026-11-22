@@ -19,13 +19,15 @@ def identity(pid):
     try:
         if os.name == 'nt':
             import psutil
-            process = psutil.Process(pid)
             try:
+                process = psutil.Process(pid)
                 if process.status() == psutil.STATUS_ZOMBIE:
                     return None
                 return (round(process.create_time(), 3), process.exe()), subprocess.list2cmdline(process.cmdline())
             except psutil.NoSuchProcess:
                 return None
+            except psutil.AccessDenied as error:
+                raise InspectionUnavailable() from error
         result = subprocess.run(['ps', '-ww', '-p', str(pid), '-o', 'stat=,lstart=,args='],
                                 capture_output=True, text=True, timeout=2)
         fields = result.stdout.strip().split(None, 6)
@@ -74,7 +76,7 @@ class AttachedWorker:
             else:
                 args = shlex.split(signature[1])
                 if (not args or not Path(args[0]).name.lower().startswith('python')
-                        or args[-1] != str(store.ROOT / 'app/worker.py') or os.getpgid(pid) != pid):
+                        or (args[-1] != str(store.ROOT / 'app/worker.py') and args[-2:] != [str(store.ROOT / 'app/worker.py'), '--study-task-id=' + Path(path).name]) or os.getpgid(pid) != pid):
                     return None
                 lsof = shutil.which('lsof')
                 if not lsof:
@@ -118,7 +120,7 @@ class AttachedWorker:
         self.signal(signal.SIGTERM)
 
     def kill(self):
-        self.signal(signal.SIGKILL)
+        self.signal(getattr(signal, "SIGKILL", signal.SIGTERM))
 
     def wait(self, timeout):
         deadline = time.monotonic() + timeout
