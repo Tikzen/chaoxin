@@ -18,6 +18,7 @@ if __name__ == '__main__':
     # The coordinator imports this module as app.worker. Keep exception and
     # cancellation classes identical when the script is launched by filename.
     sys.modules['app.worker'] = sys.modules[__name__]
+from app.state_io import write_json
 from app.retry import RetryNeeded, WorkUnavailable, PointRecoveryNeeded
 
 
@@ -70,9 +71,7 @@ class Reporter:
 
     def flush(self):
         with self.lock:
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self.state, ensure_ascii=False), encoding="utf-8")
-            os.replace(tmp, self.path)
+            write_json(self.path, self.state)
 
     def checkpoint(self):
         if os.name == 'nt' and self.payload.get('action') == 'job' and self.payload.get('unit') and self.payload.get('claim_owner'):

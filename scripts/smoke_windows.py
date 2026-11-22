@@ -16,6 +16,9 @@ with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp) / "绿色版 smoke"
     with ZipFile("dist/chaoxin-windows-x64.zip") as z:
         z.extractall(root)
+    probe = Path(__file__).with_name("check_windows_snapshot.py").resolve()
+    subprocess.run([str(root/"payload/python/python.exe"), "-X", "utf8", str(probe)], cwd=root,
+                   env={**os.environ, "PYTHONPATH": str(root/"payload")}, timeout=30, check=True)
     verify_upgrade = "--verify-published" in sys.argv
     if verify_upgrade:
         # Model an older installed version; the updater must fetch the real published ZIP.

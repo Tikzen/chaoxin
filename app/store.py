@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from cryptography.fernet import Fernet
+from app.state_io import write_json
 from app.runtime import data_root, resource_root
 
 ROOT = resource_root()
@@ -165,12 +166,6 @@ def setting(key, default=None):
 
 def set_setting(key, value):
     execute("INSERT INTO settings VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, seal(value)))
-
-
-def write_json(path, value):
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, path)
 
 
 def read_json(path, default=None):

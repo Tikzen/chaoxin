@@ -130,7 +130,7 @@ wheels = [
 
 [[package]]
 name = "chaoxin-console"
-version = "0.6.3"
+version = "0.6.4"
 source = { virtual = "." }
 dependencies = [
     { name = "beautifulsoup4" },
