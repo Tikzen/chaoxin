@@ -36,9 +36,9 @@ def build_info():
         import tomllib
         with (store.ROOT / "pyproject.toml").open("rb") as file:
             project = tomllib.load(file)["project"]
-        return {"version": project.get("version", "0.0.0"), "repository": "Tikzen/chaoxin"}
+        return {"version": project.get("version", "0.0.0"), "repository": "Tikzen/inn4xxt"}
     except (OSError, ValueError, KeyError):
-        return {"version": "0.0.0", "repository": "Tikzen/chaoxin"}
+        return {"version": "0.0.0", "repository": "Tikzen/inn4xxt"}
 
 
 def repository():
@@ -48,7 +48,8 @@ def repository():
     match = re.fullmatch(r"(?:https://github\.com/)?([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?", value)
     if not match:
         return ""
-    return f"{match.group(1)}/{match.group(2)}"
+    repo = f"{match.group(1)}/{match.group(2)}"
+    return "Tikzen/inn4xxt" if repo.casefold() == "tikzen/chaoxin" else repo
 
 
 def version_tuple(value):

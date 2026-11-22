@@ -16,12 +16,12 @@ def test_only_stable_numeric_tags():
 
 def test_update_requires_correct_hash_and_successful_probe_before_switch(tmp_path, monkeypatch):
     package = tmp_path / "incoming.zip"
-    meta = {"version": "1.0.0", "repository": "Tikzen/chaoxin", "launcher_protocol": 1}
+    meta = {"version": "1.0.0", "repository": "Tikzen/inn4xxt", "launcher_protocol": 1}
     with ZipFile(package, "w") as archive:
         for name in ("Chaoxin.exe", "payload/app/main.py", "payload/static/index.html", "payload/run.py", "payload/python/python.exe"):
             archive.writestr(name, "placeholder")
         archive.writestr("payload/build-info.json", json.dumps(meta))
-    prefix = "https://github.com/Tikzen/chaoxin/releases/download/v1.0.0/"
+    prefix = "https://github.com/Tikzen/inn4xxt/releases/download/v1.0.0/"
     release = dict(update_available=True, asset_available=True, latest_version="v1.0.0", repository=meta["repository"],
                    download_url=prefix+updater.ASSET_NAME, checksum_url=prefix+updater.CHECKSUM_NAME)
     monkeypatch.setattr(updater, "portable", lambda: True)

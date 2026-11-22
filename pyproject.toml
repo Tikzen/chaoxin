@@ -1,6 +1,6 @@
 [project]
 name = "chaoxin-console"
-version = "0.6.2"
+version = "0.6.3"
 description = "本地学习通账号、课程与异步任务管理"
 requires-python = ">=3.13"
 dependencies = [

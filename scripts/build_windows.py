@@ -41,7 +41,7 @@ def main():
                 dest = payload / entry
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / entry, dest)
-        (payload / "build-info.json").write_text(json.dumps(dict(version=version, repository="Tikzen/chaoxin", launcher_protocol=1)), encoding="utf8")
+        (payload / "build-info.json").write_text(json.dumps(dict(version=version, repository=os.environ.get("GITHUB_REPOSITORY", "Tikzen/inn4xxt"), launcher_protocol=1)), encoding="utf8")
         subprocess.run([sys.executable, "-m", "PyInstaller", "--onefile", "--clean", "--name", "Chaoxin", "--distpath", str(stage), "--workpath", str(work/"boot"), "--specpath", tmp, str(ROOT/"windows/launcher.py")], cwd=tmp, check=True)
         output = ROOT / "dist/chaoxin-windows-x64.zip"
         output.parent.mkdir(exist_ok=True)
