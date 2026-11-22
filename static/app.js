@@ -42,7 +42,7 @@ function timeText(date) {return new Date(date).toLocaleTimeString('zh-CN',{hour:
 function navigate() {
   const view=location.hash.slice(1)||'overview';
   state.view=['overview','courses','tasks','accounts','settings'].includes(view)?view:'overview';
-  const meta={overview:['学习概览','你的学习，一目了然','在这台 Mac 管理账号、课程和后台任务。'],courses:['我的课程','当前账号的学习空间','切换账号加载对应课程，进入课程即可开始学习。'],tasks:['运行任务','所有账号的任务，一处查看','各账号独立异步运行，可按账号、课程和状态筛选。'],accounts:['账号管理','所有账号，一处管理','保存学习通账号，选择账号即可进入对应课程。'],settings:['运行设置','macOS 本地运行','设置全局并发数，在本机持续执行学习任务。']}[state.view];
+  const meta={overview:['学习概览','你的学习，一目了然','在这台电脑 管理账号、课程和后台任务。'],courses:['我的课程','当前账号的学习空间','切换账号加载对应课程，进入课程即可开始学习。'],tasks:['运行任务','所有账号的任务，一处查看','各账号独立异步运行，可按账号、课程和状态筛选。'],accounts:['账号管理','所有账号，一处管理','保存学习通账号，选择账号即可进入对应课程。'],settings:['运行设置','本地运行','设置全局并发数，在本机持续执行学习任务。']}[state.view];
   $('#page-title').innerHTML=`${meta[0]}<span class="title-dot">.</span>`;$('#breadcrumb-title').textContent=meta[0];$('#page-eyebrow').textContent=meta[1];$('#page-description').textContent=meta[2];
   $$('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.view===state.view));
   $$('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${state.view}`));
@@ -129,10 +129,10 @@ function renderTasks() {
   if(state.taskFilter==='completed')tasks=tasks.filter(t=>t.status==='completed');
   if(state.taskFilter==='attention')tasks=tasks.filter(t=>['attention','failed','interrupted'].includes(t.status));
   $('#task-result-count').textContent=`${tasks.length} 个任务${state.taskAccount==='all'?' · 所有账号':''}`;
-  $('#task-list').innerHTML=tasks.length?tasks.map(t=>`<article class="task-card"><div class="task-card-top"><div class="task-thumb">${icon('book')}</div><div><h3>${esc(t.title)}</h3><p>${esc(accountName(t.account_id))} · ${dateText(t.created_at)}</p></div>${taskBadge(t)}</div><div class="task-card-progress"><div class="task-progress-header"><span>${esc(t.state.chapter||'等待运行')}${t.state.total?` · ${t.state.done||0}/${t.state.total} 节`:''}</span><strong>${Math.round(t.progress)}%</strong></div>${progress(t.progress)}</div>${t.state.error||t.state.sync_error?`<div class="task-error">${esc(t.state.error||t.state.sync_error)}</div>`:''}<div class="task-card-foot"><span>${icon(t.engine==='github'?'cloud':'server')}${t.engine==='github'?'旧版云端任务':'这台 Mac'}${t.status==='paused'?' · 将在下一个检查点暂停':''}</span><div class="task-card-actions">${taskActions(t)}</div></div></article>`).join(''):empty('这里暂时没有任务','选择一门课程开始，随后可以在这里查看进度、暂停或停止。','选择课程');
+  $('#task-list').innerHTML=tasks.length?tasks.map(t=>`<article class="task-card"><div class="task-card-top"><div class="task-thumb">${icon('book')}</div><div><h3>${esc(t.title)}</h3><p>${esc(accountName(t.account_id))} · ${dateText(t.created_at)}</p></div>${taskBadge(t)}</div><div class="task-card-progress"><div class="task-progress-header"><span>${esc(t.state.chapter||'等待运行')}${t.state.total?` · ${t.state.done||0}/${t.state.total} 节`:''}</span><strong>${Math.round(t.progress)}%</strong></div>${progress(t.progress)}</div>${t.state.error||t.state.sync_error?`<div class="task-error">${esc(t.state.error||t.state.sync_error)}</div>`:''}<div class="task-card-foot"><span>${icon(t.engine==='github'?'cloud':'server')}${t.engine==='github'?'旧版云端任务':'这台电脑'}${t.status==='paused'?' · 将在下一个检查点暂停':''}</span><div class="task-card-actions">${taskActions(t)}</div></div></article>`).join(''):empty('这里暂时没有任务','选择一门课程开始，随后可以在这里查看进度、暂停或停止。','选择课程');
 }
 function renderAccounts() {
-  $('#account-list').innerHTML=state.data.accounts.length?state.data.accounts.map(a=>`<article class="account-card${a.id===state.account?' current':''}"><div class="account-top"><div class="account-avatar">${esc(a.name.slice(0,1))}</div><div><h3>${esc(a.name)}</h3><p>${esc(a.hint)}</p></div></div>${badge(a.mode==='demo'?'demo':a.status,a.mode==='demo'?'演示账号':null)}<p class="account-task-count">${state.data.tasks.filter(t=>t.account_id===a.id&&active.includes(t.status)).length} 个进行中的任务${a.id===state.account?' · 当前账号':''}</p><div class="account-bottom"><button class="button primary" data-action="use-account" data-id="${a.id}">进入课程</button><button class="button secondary" data-action="sync-account" data-id="${a.id}">${icon('refresh')}同步课程</button>${a.mode==='real'?`<button class="button secondary" data-action="password" data-id="${a.id}">改密码</button>`:''}<button class="button secondary account-delete" data-action="delete-account" data-id="${a.id}">删除</button></div></article>`).join(''):empty('账号管理，从一个账号开始','添加学习通账号，密码加密保存在这台 Mac 上。','添加账号','add-account','users');
+  $('#account-list').innerHTML=state.data.accounts.length?state.data.accounts.map(a=>`<article class="account-card${a.id===state.account?' current':''}"><div class="account-top"><div class="account-avatar">${esc(a.name.slice(0,1))}</div><div><h3>${esc(a.name)}</h3><p>${esc(a.hint)}</p></div></div>${badge(a.mode==='demo'?'demo':a.status,a.mode==='demo'?'演示账号':null)}<p class="account-task-count">${state.data.tasks.filter(t=>t.account_id===a.id&&active.includes(t.status)).length} 个进行中的任务${a.id===state.account?' · 当前账号':''}</p><div class="account-bottom"><button class="button primary" data-action="use-account" data-id="${a.id}">进入课程</button><button class="button secondary" data-action="sync-account" data-id="${a.id}">${icon('refresh')}同步课程</button>${a.mode==='real'?`<button class="button secondary" data-action="password" data-id="${a.id}">改密码</button>`:''}<button class="button secondary account-delete" data-action="delete-account" data-id="${a.id}">删除</button></div></article>`).join(''):empty('账号管理，从一个账号开始','添加学习通账号，密码加密保存在这台电脑 上。','添加账号','add-account','users');
 }
 function rememberAccount() {
   try {localStorage.setItem('study-account',state.account);} catch (_) {}
@@ -184,7 +184,7 @@ function renderDetail() {
   const log=$('#task-detail .log-console');const atBottom=!log||log.scrollHeight-log.scrollTop-log.clientHeight<35;const scroll=log?.scrollTop||0;
   $('#detail-title').textContent=t.title;
   const safeUrl=t.state.run_url&&/^https:\/\/github\.com\/[^/]+\/[^/]+\/actions\/runs\/\d+$/.test(t.state.run_url)?t.state.run_url:null;
-  $('#task-detail').innerHTML=`<div class="detail-summary">${taskBadge(t)}<span>${esc(accountName(t.account_id))} · ${t.engine==='github'?'旧版云端任务':'这台 Mac'}</span></div>${progress(t.progress)}<p class="detail-chapter">${esc(t.state.chapter||'等待运行')} · 总进度 ${Math.round(t.progress)}%${t.state.video_total?`<br>当前音视频：${t.state.video_seconds||0}/${t.state.video_total} 秒（此数值为播放计时，章节完成以平台确认为准）`:''}</p>${t.state.next_retry_at&&t.status==='retry_wait'?`<p class="field-help">计划重试：${dateText(t.state.next_retry_at)} · ${t.state.retry_scope==='points'?'按任务点独立恢复，不消耗整门课重试预算':`已安排 ${Number(t.state.retry_count)||0} 次`}；未占用运行位置</p>`:''}${t.state.answer_progress?`<p class="field-help">有效答案 ${Number(t.state.answer_progress.matched)||0}/${Number(t.state.answer_progress.total)||0} · 当前来源 ${esc(t.state.answer_progress.source)}</p>`:''}${t.state.quiz_result?`<p class="field-help">平台作答记录：已提交 · 成绩 ${t.state.quiz_result.score==null?'待批阅':esc(t.state.quiz_result.score)}</p>`:''}${t.state.error?`<div class="task-error">${esc(t.state.error)}</div>`:''}${pointQueue(t)}${recoveryPanel(t)}${quizForm(t)}<div class="log-console">${(t.state.logs||[]).length?t.state.logs.map(l=>`<div class="log-line ${esc(l.level)}"><time>${timeText(l.time)}</time><span>${esc(l.message)}</span></div>`).join(''):'等待工作进程输出日志…'}</div><div class="dialog-actions">${safeUrl?`<a class="button secondary" href="${esc(safeUrl)}" target="_blank" rel="noopener noreferrer">打开 GitHub 运行记录 ↗</a>`:''}${taskActions(t).replace(/<button[^>]*data-action="detail"[^>]*>.*?<\/button>/,'')}</div>`;
+  $('#task-detail').innerHTML=`<div class="detail-summary">${taskBadge(t)}<span>${esc(accountName(t.account_id))} · ${t.engine==='github'?'旧版云端任务':'这台电脑'}</span></div>${progress(t.progress)}<p class="detail-chapter">${esc(t.state.chapter||'等待运行')} · 总进度 ${Math.round(t.progress)}%${t.state.video_total?`<br>当前音视频：${t.state.video_seconds||0}/${t.state.video_total} 秒（此数值为播放计时，章节完成以平台确认为准）`:''}</p>${t.state.next_retry_at&&t.status==='retry_wait'?`<p class="field-help">计划重试：${dateText(t.state.next_retry_at)} · ${t.state.retry_scope==='points'?'按任务点独立恢复，不消耗整门课重试预算':`已安排 ${Number(t.state.retry_count)||0} 次`}；未占用运行位置</p>`:''}${t.state.answer_progress?`<p class="field-help">有效答案 ${Number(t.state.answer_progress.matched)||0}/${Number(t.state.answer_progress.total)||0} · 当前来源 ${esc(t.state.answer_progress.source)}</p>`:''}${t.state.quiz_result?`<p class="field-help">平台作答记录：已提交 · 成绩 ${t.state.quiz_result.score==null?'待批阅':esc(t.state.quiz_result.score)}</p>`:''}${t.state.error?`<div class="task-error">${esc(t.state.error)}</div>`:''}${pointQueue(t)}${recoveryPanel(t)}${quizForm(t)}<div class="log-console">${(t.state.logs||[]).length?t.state.logs.map(l=>`<div class="log-line ${esc(l.level)}"><time>${timeText(l.time)}</time><span>${esc(l.message)}</span></div>`).join(''):'等待工作进程输出日志…'}</div><div class="dialog-actions">${safeUrl?`<a class="button secondary" href="${esc(safeUrl)}" target="_blank" rel="noopener noreferrer">打开 GitHub 运行记录 ↗</a>`:''}${taskActions(t).replace(/<button[^>]*data-action="detail"[^>]*>.*?<\/button>/,'')}</div>`;
   const next=$('#task-detail .log-console');next.scrollTop=atBottom?next.scrollHeight:scroll;
 }
 function render() {
@@ -205,7 +205,8 @@ async function refresh(quiet=false) {
     const data=await api('/dashboard');
     if(version!==refreshVersion)return true;
     state.data=data;state.authenticated=true;$('#connection-label').textContent='本地应用运行中';$('#connection-light').classList.remove('offline');$('#connection-error').classList.add('hidden');render();
-    if(!firstLoaded){firstLoaded=true;if(state.account)loadAccountCourses(state.account).catch(error=>toast(error.message,true));}
+    if(!firstLoaded){firstLoaded=true;$('.version').textContent='v'+state.data.version;
+      if(state.data.capabilities?.portable_updates)checkUpdates();if(state.account)loadAccountCourses(state.account).catch(error=>toast(error.message,true));}
     return true;
   } catch(error) {
     if(version!==refreshVersion)return false;
@@ -342,3 +343,38 @@ $('#quiz-test-ai').addEventListener('click',event=>perform(event.currentTarget,a
   try {const result=await post('/quiz/test',quizSettingsBody($('#quiz-settings-form')));output.textContent=`${result.message}（${result.latency_ms} ms）`;}
   catch(error){output.textContent=error.message;throw error;}
 }));
+
+let offeredVersion = null;
+async function checkUpdates(){
+  const check=$('#update-check'), install=$('#update-install'), result=$('#update-result');
+  check.disabled=true;install.classList.add('hidden');offeredVersion=null;result.textContent='正在检查 GitHub Release…';
+  try {
+    const r=await api('/updates/check');
+    if(!r.latest_version) result.textContent='当前 v'+r.current_version+'；仓库尚未发布正式版本。';
+    else if(!r.update_available) result.textContent='当前已是最新版本：v'+r.current_version;
+    else {
+      result.textContent='当前 v'+r.current_version+'，发现 '+r.latest_version+'。';
+      if(r.asset_available && state.data.capabilities?.portable_updates){
+        offeredVersion=r.latest_version;install.classList.remove('hidden');
+      }else result.textContent+=r.asset_available?' 源码版请从仓库更新。':' 暂无可安装的 Windows 包。';
+    }
+  }catch(error){result.textContent=error.message;}
+  finally{check.disabled=false;}
+}
+$('#update-check').onclick=checkUpdates;
+$('#update-install').onclick=async()=>{
+  if(!offeredVersion)return;
+  const result=$('#update-result'), check=$('#update-check'), install=$('#update-install');
+  install.disabled=check.disabled=true;result.textContent='正在下载、校验并试启动新版，请保持窗口打开…';
+  try{
+    const target=offeredVersion.replace(/^v/,'');
+    await post('/updates/install',{version:offeredVersion});
+    result.textContent='正在重启本地控制台…';
+    for(let i=0;i<60;i++){
+      await new Promise(resolve=>setTimeout(resolve,1000));
+      try{const d=await api('/dashboard');if(d.version===target){location.reload();return;}}catch(_){}
+    }
+    result.textContent='未确认新版启动，请查看启动窗口并刷新页面。';
+  }catch(error){result.textContent=error.message;}
+  finally{install.disabled=check.disabled=false;}
+};

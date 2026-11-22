@@ -11,12 +11,12 @@ import uuid
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import store
+from app import store, updater
 from app.manager import ACTIVE, manager, public_task, update_task
 from app.runtime import worker_command
 
@@ -35,6 +35,7 @@ async def lifespan(app):
 app = FastAPI(title="课栈 · 学习控制台", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=store.ROOT / "static"), name="static")
 attempts = {}
+mutations = 0
 
 
 @app.middleware("http")
@@ -47,7 +48,17 @@ async def protect(request: Request, call_next):
         origin = request.headers.get("origin")
         if origin and urlparse(origin).netloc != request.headers.get("host"):
             return JSONResponse({"detail": "请求来源不匹配"}, status_code=403)
-    response = await call_next(request)
+    global mutations
+    changes = path.startswith("/api/") and request.method not in ("GET", "HEAD", "OPTIONS") and path != "/api/updates/install"
+    if changes and manager.updating:
+        return JSONResponse({"detail": "正在切换版本，请稍后重试"}, status_code=409)
+    if changes:
+        mutations += 1
+    try:
+        response = await call_next(request)
+    finally:
+        if changes:
+            mutations -= 1
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Frame-Options"] = "DENY"
@@ -190,7 +201,7 @@ def dashboard():
     return {"accounts": [account_public(a) for a in accounts], "courses": [store.public_course(c) for c in courses],
             "tasks": [public_task(t) for t in tasks], "concurrency": store.setting("concurrency", 3),
             "point_concurrency": store.setting('point_concurrency', 1),
-            "capabilities": {"retry_now": True},
+            "capabilities": {"retry_now": True, "portable_updates": updater.portable()}, "version": updater.build_info()["version"],
             "execution_mode": "local", "quiz": {key: quiz[key] for key in PUBLIC_KEYS},
             "quiz_secrets": {key: bool(quiz[key]) for key in SECRET_KEYS},
             "answer_sources": {"chain": [name for name in source_order(quiz) if source_available(name, quiz)],
@@ -519,3 +530,41 @@ def settings(body: SettingsBody):
                 set_point_concurrency(task, body.point_concurrency)
     return {"ok": True}
 
+
+@app.get("/api/updates/check")
+def check_updates():
+    import requests
+    try:
+        release = updater.check_release()
+    except requests.RequestException:
+        raise HTTPException(502, "无法连接 GitHub，请稍后重试") from None
+    return {key: release.get(key) for key in ("current_version", "latest_version", "update_available", "asset_available")}
+
+
+class UpdateBody(BaseModel):
+    version: str = Field(min_length=1, max_length=32)
+
+
+@app.post("/api/updates/install")
+def install_update(body: UpdateBody, background: BackgroundTasks):
+    if not updater.portable() or not hasattr(app.state, "restart"):
+        raise HTTPException(400, "一键更新仅适用于 Windows 绿色版")
+    with manager.lock:
+        if manager.updating or mutations or manager.processes or manager.progress_processes or store.one(
+            "SELECT id FROM tasks WHERE status IN ('running','queued','paused','retry_wait','waiting_answer','cancelling') LIMIT 1"
+        ) or store.one("SELECT id FROM courses WHERE progress_status IN ('queued','running') LIMIT 1"):
+            raise HTTPException(409, "有未结束任务、进度刷新或其他操作，请等结束后再更新")
+        manager.updating = True
+    try:
+        release = updater.check_release()
+        if body.version != release.get("latest_version"):
+            raise ValueError("最新版本已变化，请重新检查更新")
+        key = updater.prepare(release)
+        updater.activate(key)
+        background.add_task(app.state.restart)
+        return {"restarting": True, "version": body.version}
+    except Exception as error:
+        manager.updating = False
+        if isinstance(error, ValueError):
+            raise
+        raise HTTPException(502, "下载、校验或试启动失败，仍在使用当前版本") from None

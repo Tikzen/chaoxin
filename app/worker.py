@@ -75,7 +75,7 @@ class Reporter:
             os.replace(tmp, self.path)
 
     def checkpoint(self):
-        if self.payload.get('action') == 'job' and self.payload.get('unit') and self.payload.get('claim_owner'):
+        if os.name == 'nt' and self.payload.get('action') == 'job' and self.payload.get('unit') and self.payload.get('claim_owner'):
             now = time.monotonic()
             if now - getattr(self, '_claim_heartbeat', 0) >= 10:
                 from app.point_queue import PointLedger
@@ -83,8 +83,14 @@ class Reporter:
                     self.payload['unit']['id'], self.payload['claim_owner'], os.getpid())
                 self._claim_heartbeat = now
         while True:
-            if self.payload.get('parent_pid') and os.getppid() != self.payload['parent_pid']:
-                raise Cancelled()
+            parent = self.payload.get("parent_pid")
+            if parent:
+                if os.name == "nt":
+                    import psutil
+                    if not psutil.pid_exists(parent):
+                        raise Cancelled()
+                elif os.getppid() != parent:
+                    raise Cancelled()
             try:
                 action = json.loads(Path(self.payload.get('control_path', 'control.json')).read_text())["action"]
             except (OSError, ValueError, KeyError):

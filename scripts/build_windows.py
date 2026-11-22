@@ -27,8 +27,8 @@ def main():
         python = payload / "python"
         env = {**os.environ, "UV_PYTHON_INSTALL_DIR": str(work / "cpython")}
         subprocess.run(["uv", "python", "install", "--no-bin", "3.13"], env=env, check=True)
-        runtimes = [p.parent for p in (work / "cpython").rglob("python.exe")
-                    if (p.parent / "Lib/os.py").is_file()]
+        runtimes = sorted({p.parent.resolve() for p in (work / "cpython").rglob("python.exe")
+                    if (p.parent / "Lib/os.py").is_file()})
         if len(runtimes) != 1:
             raise RuntimeError(f"Expected one managed runtime, found {runtimes}")
         shutil.copytree(runtimes[0], python, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))

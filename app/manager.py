@@ -261,6 +261,8 @@ class Manager:
                     store.execute("UPDATE courses SET progress_status='error',progress_error=? WHERE id=?", (error, course_id))
             shutil.rmtree(path, ignore_errors=True)
             del self.progress_processes[course_id]
+        if self.updating:
+            return
         free = max(0, 2 - len(self.progress_processes))
         for course in store.rows("SELECT * FROM courses WHERE progress_status='queued' ORDER BY rowid LIMIT ?", (free,)):
             account = store.one("SELECT * FROM accounts WHERE id=?", (course["account_id"],))

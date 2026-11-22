@@ -4,9 +4,12 @@ import json
 import os
 import re
 import shutil
-import sys
+import subprocess
+import tempfile
+import uuid
+from pathlib import PureWindowsPath
 import zipfile
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import requests
 
@@ -18,7 +21,7 @@ MAX_RELEASE_BYTES = 600 * 1024 * 1024
 
 
 def install_root():
-    return store.ROOT
+    return Path(os.environ.get('STUDY_PORTABLE_ROOT', store.ROOT))
 
 
 def build_info():
@@ -33,9 +36,9 @@ def build_info():
         import tomllib
         with (store.ROOT / "pyproject.toml").open("rb") as file:
             project = tomllib.load(file)["project"]
-        return {"version": project.get("version", "0.0.0"), "repository": ""}
+        return {"version": project.get("version", "0.0.0"), "repository": "Tikzen/chaoxin"}
     except (OSError, ValueError, KeyError):
-        return {"version": "0.0.0", "repository": ""}
+        return {"version": "0.0.0", "repository": "Tikzen/chaoxin"}
 
 
 def repository():
@@ -49,8 +52,10 @@ def repository():
 
 
 def version_tuple(value):
-    numbers = re.findall(r"\d+", str(value))
-    return tuple(int(number) for number in numbers[:4]) or (0,)
+    match = re.fullmatch(r"v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", str(value))
+    if not match:
+        raise ValueError("Release 版本号无效")
+    return tuple(map(int, match.groups()))
 
 
 def _asset_map(release):
@@ -67,7 +72,8 @@ def check_release(repo=None):
         timeout=(8, 20),
     )
     if response.status_code == 404:
-        raise ValueError("该仓库还没有已发布的 GitHub Release")
+        return {"configured": True, "repository": repo, "current_version": build_info()["version"],
+                "latest_version": None, "update_available": False}
     response.raise_for_status()
     release = response.json()
     if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
@@ -115,85 +121,80 @@ def _download(url, destination, limit):
     return digest.hexdigest()
 
 
-def _trusted_asset_url(url, repo):
-    return (url.startswith(f"https://github.com/{repo}/releases/download/")
-            and "?" not in url and "#" not in url)
-
-
 def _safe_extract(archive_path, destination):
-    required = {"Chaoxin.exe", "python/python.exe", "app/main.py", "static/index.html"}
-    top_levels = {"Chaoxin.exe", "python", "app", "static", "vendor", "scripts", "README-Windows.txt", "LICENSE", "build-info.json", "run.py"}
+    required = {"Chaoxin.exe", "payload/python/python.exe", "payload/app/main.py",
+                "payload/static/index.html", "payload/build-info.json", "payload/run.py"}
     with zipfile.ZipFile(archive_path) as archive:
-        names = archive.namelist()
+        infos = archive.infolist()
+        if len(infos) > 100000 or sum(e.file_size for e in infos) > 2 * 1024**3:
+            raise ValueError("解压后的更新包过大")
         found = set()
-        for info in archive.infolist():
-            name = PurePosixPath(info.filename.replace("\\", "/"))
-            if name.is_absolute() or any(part in ("..", "") for part in name.parts):
+        for info in infos:
+            name = info.filename.rstrip("/")
+            parts = name.split("/")
+            if (not name or (parts[0] != "payload" and name != "Chaoxin.exe")
+                or any(not part or part in (".", "..") or part.endswith((".", " "))
+                       or PureWindowsPath(part).is_reserved() or re.search(r'[<>:"|?*\\\x00-\x1f]', part)
+                       for part in parts)
+                or info.external_attr >> 28 == 10 or name.casefold() in found):
                 raise ValueError("更新包包含不安全的路径")
-            if not name.parts or name.parts[0] not in top_levels:
-                raise ValueError("更新包包含未知文件")
-            relative = name.as_posix()
-            if relative in required:
-                found.add(relative)
-            target = destination.joinpath(*name.parts)
+            found.add(name.casefold())
+            target = destination.joinpath(*parts)
             if info.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(info) as source, target.open("wb") as output:
+            with archive.open(info) as source, target.open("xb") as output:
                 shutil.copyfileobj(source, output)
-        if not required.issubset(found):
+        if not {name.casefold() for name in required} <= found:
             raise ValueError("更新包缺少程序文件")
 
 
-def download_release(release):
-    if os.name != "nt" or os.environ.get("STUDY_PORTABLE_WINDOWS") != "1":
-        raise ValueError("一键更新仅适用于 Windows 免安装版")
-    if not release.get("configured") or not release.get("update_available"):
-        raise ValueError("当前没有可下载的更新")
-    if not release.get("asset_available"):
-        raise ValueError("该 Release 未附带 Windows x64 更新包或校验文件")
-    if release.get("asset_size", 0) > MAX_RELEASE_BYTES:
-        raise ValueError("更新包超过允许的大小")
-    if not (_trusted_asset_url(release.get("download_url", ""), release["repository"])
-            and _trusted_asset_url(release.get("checksum_url", ""), release["repository"])):
+def portable():
+    return os.name == "nt" and os.environ.get("STUDY_PORTABLE_WINDOWS") == "1" and bool(os.environ.get("STUDY_PORTABLE_ROOT"))
+
+
+def prepare(release):
+    if not portable():
+        raise ValueError("一键更新仅适用于 Windows 绿色版")
+    if not release.get("update_available") or not release.get("asset_available"):
+        raise ValueError("没有可安装的 Windows 更新")
+    repo, tag = release["repository"], release["latest_version"]
+    version_tuple(tag)
+    prefix = f"https://github.com/{repo}/releases/download/{tag}/"
+    if release["download_url"] != prefix + ASSET_NAME or release["checksum_url"] != prefix + CHECKSUM_NAME:
         raise ValueError("Release 下载地址无效")
-    tag = re.sub(r"[^A-Za-z0-9._-]", "_", release["latest_version"])
     updates = install_root() / ".updates"
-    updates.mkdir(parents=True, exist_ok=True)
-    working = updates / ("download-" + tag)
-    shutil.rmtree(working, ignore_errors=True)
-    working.mkdir()
-    archive_path = working / ASSET_NAME
-    actual = _download(release["download_url"], archive_path, MAX_RELEASE_BYTES)
-    checksum_path = working / CHECKSUM_NAME
-    _download(release["checksum_url"], checksum_path, 4096)
-    expected_match = re.search(r"\b([a-fA-F0-9]{64})\b", checksum_path.read_text(encoding="utf-8", errors="replace"))
-    if not expected_match or actual.lower() != expected_match.group(1).lower():
-        shutil.rmtree(working, ignore_errors=True)
-        raise ValueError("更新包 SHA-256 校验失败")
-    stage = updates / ("ready-" + tag)
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir()
-    try:
-        _safe_extract(archive_path, stage)
-    except Exception:
-        shutil.rmtree(stage, ignore_errors=True)
-        raise
-    (stage / "release.json").write_text(json.dumps({"version": release["latest_version"],
-        "repository": release["repository"], "sha256": actual}, ensure_ascii=False), encoding="utf-8")
-    shutil.rmtree(working, ignore_errors=True)
-    return {"downloaded": True, "version": release["latest_version"], "stage": str(stage)}
+    updates.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=updates) as tmp:
+        work = Path(tmp)
+        checksum = work / CHECKSUM_NAME
+        _download(release["checksum_url"], checksum, 4096)
+        expected = checksum.read_text(encoding="ascii").split()
+        archive = work / ASSET_NAME
+        actual = _download(release["download_url"], archive, MAX_RELEASE_BYTES)
+        if not expected or actual != expected[0].lower():
+            raise ValueError("更新包 SHA-256 校验失败")
+        stage = work / "stage"
+        _safe_extract(archive, stage)
+        payload = stage / "payload"
+        info = json.loads((payload / "build-info.json").read_text(encoding="utf8"))
+        if (info.get("version") != tag.removeprefix("v") or info.get("repository") != repo
+                or info.get("launcher_protocol") != 1):
+            raise ValueError("更新包版本、来源或启动协议不匹配")
+        subprocess.run([str(payload / "python/python.exe"), "-X", "utf8", str(payload / "run.py"), "--self-test"],
+                       cwd=payload, env={**os.environ, "STUDY_DATA_DIR": str(work / "probe-data")},
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90, check=True)
+        key = "v" + info["version"] + "-" + uuid.uuid4().hex[:12]
+        stage.rename(updates / key)
+        return key
 
 
-def pending_update():
+def activate(key):
     updates = install_root() / ".updates"
-    candidates = sorted(updates.glob("ready-*/release.json"), key=lambda p: p.stat().st_mtime, reverse=True) if updates.exists() else []
-    if not candidates:
-        return None
-    try:
-        value = json.loads(candidates[0].read_text(encoding="utf-8"))
-        value["stage"] = str(candidates[0].parent)
-        return value
-    except (OSError, ValueError):
-        return None
+    marker = updates / "active"
+    previous = marker.read_text(encoding="ascii") if marker.exists() else ""
+    (updates / "previous").write_text(previous, encoding="ascii")
+    temp = updates / "active.new"
+    temp.write_text(key, encoding="ascii")
+    temp.replace(marker)

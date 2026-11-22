@@ -26,12 +26,25 @@ def launch():
     # PyInstaller modifies the DLL search path for its own bootstrap.
     import ctypes
     ctypes.windll.kernel32.SetDllDirectoryW(None)
+    switching = False
     while True:
         payload = active(root)
         cmd = [str(payload / "python/python.exe"), "-X", "utf8", str(payload / "run.py"), *sys.argv[1:]]
         result = subprocess.run(cmd, cwd=payload, env=env).returncode
-        if result != 75:
-            return result
+        if result == 75:
+            switching = True
+            continue
+        if switching and result and not (payload.parent / "started").exists():
+            updates = root / ".updates"
+            previous = (updates / "previous").read_text(encoding="ascii")
+            if previous:
+                (updates / "previous").replace(updates / "active")
+            else:
+                (updates / "active").unlink(missing_ok=True)
+            print("新版启动失败，正在恢复上一个版本。", flush=True)
+            switching = False
+            continue
+        return result
 
 
 if __name__ == "__main__":
