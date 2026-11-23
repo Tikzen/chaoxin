@@ -20,6 +20,8 @@ from app import store, updater
 from app.manager import ACTIVE, manager, public_task, update_task
 from app.runtime import MAX_POINT_CONCURRENCY, worker_command
 
+SERVER_VERSION = updater.build_info()["version"]
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -201,7 +203,8 @@ def dashboard():
     return {"accounts": [account_public(a) for a in accounts], "courses": [store.public_course(c) for c in courses],
             "tasks": [public_task(t) for t in tasks], "concurrency": store.setting("concurrency", 3),
             "point_concurrency": store.setting('point_concurrency', 1),
-            "capabilities": {"retry_now": True, "portable_updates": updater.portable()}, "version": updater.build_info()["version"],
+            "capabilities": {"retry_now": True, "portable_updates": updater.portable(),
+                             "max_point_concurrency": MAX_POINT_CONCURRENCY}, "version": SERVER_VERSION,
             "execution_mode": "local", "quiz": {key: quiz[key] for key in PUBLIC_KEYS},
             "quiz_secrets": {key: bool(quiz[key]) for key in SECRET_KEYS},
             "answer_sources": {"chain": [name for name in source_order(quiz) if source_available(name, quiz)],

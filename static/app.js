@@ -25,6 +25,11 @@ async function api(path, options={}) {
   const result = await res.json().catch(()=>({detail:'本地应用返回异常，请稍后重试'}));
   if (!res.ok) {
     if (res.status===401 && path!=='/auth') {state.authenticated=false;openAuth();}
+    if(res.status===422 && Array.isArray(result.detail)){
+      const point=result.detail.find(e=>e.type==='less_than_equal' &&
+        (e.loc?.at(-1)==='point_concurrency' || (path.endsWith('/point-concurrency') && e.loc?.at(-1)==='concurrency')));
+      if(point && Number.isInteger(point.ctx?.le))throw new Error(`当前后台只接受最多 ${point.ctx.le} 并发。请等任务结束后重启本地控制台，再刷新页面。`);
+    }
     throw new Error(typeof result.detail==='string'?result.detail:'输入内容不正确，请检查后重试');
   }
   return result;
@@ -169,6 +174,11 @@ function quizForm(t) {
 }
 
 
+// Older source servers can serve new static files without reloading their API.
+function pointMax() {return state.data?.capabilities?.max_point_concurrency ?? 3;}
+function pointRestartHint() {
+  return pointMax()<10?'当前后台尚未启用 10 并发。请等任务结束后重启本地控制台，再刷新页面。':'';
+}
 function confirmPointConcurrency(count) {
   return count <= 3 || window.confirm(`单课程并发推荐设置为 3，当前选择为 ${count}。\n过高的并发暂未实测可用性，可能导致意外问题，请谨慎开启。`);
 }
@@ -178,7 +188,7 @@ function pointQueue(t) {
   const limit=Number(t.state.point_concurrency)||1;const rows=t.state.active_points||[];const history=t.state.point_history||[];
   const experimental=limit>1||Number(t.state.point_peak)>1;
   const names={processed:'执行结束 · 待平台确认',completed:'平台已确认完成',running:'运行中',waiting_answer:'待答题',retry_wait:'等待重试',blocked:'已隔离 · 需处理',attention:'需处理',failed:'执行失败'};
-  return `<section class="point-queue"><div class="point-queue-top"><strong>任务点队列</strong><span>目标并发 ${limit} · 运行 ${rows.length}</span></div>${experimental?'<div class="notice compact experimental-notice">单课程多并发：试验性功能，不保证稳定</div>':''}<div class="point-concurrency-buttons">${Array.from($('#point-concurrency').options,o=>Number(o.value)).map(n=>`<button class="button ${n===limit?'primary':'secondary'}" data-action="point-limit" data-id="${t.id}" data-count="${n}" aria-label="单课程并发 ${n}" aria-pressed="${n===limit}" ${n===limit||!active.includes(t.status)?'disabled':''}>${n}${n===1?' · 串行':n===3?' · 推荐':''}</button>`).join('')}</div>${rows.length>limit?'<p class="field-help">正在等待已领取任务结束，再降至目标并发；不会中断或重新领取。</p>':''}<p class="field-help">并发数是执行上限；只有当前可领取的任务点才会占用位置。章节完成数以最近一次平台回读为准。</p>${t.state.platform_progress_at?`<p class="field-help">平台进度读取于 ${dateText(t.state.platform_progress_at)}${t.state.platform_progress_error?' · 刷新暂未成功，现有任务继续':''}</p>`:''}<div class="point-workers">${rows.map(p=>`<div class="point-worker"><strong>${esc(p.name)}</strong><small>${esc(p.chapter)} · PID ${Number(p.pid)} · ${esc(names[p.status]||p.status)}</small>${p.video_total?`<span>${Number(p.video_seconds)||0}/${Number(p.video_total)} 秒</span>${progress(p.video_progress)}`:''}</div>`).join('')}${!rows.length?'<p class="field-help">当前没有运行中的任务点。</p>':''}</div>${history.length?`<details><summary>本轮已处理 ${history.length} 个任务点</summary>${history.map(p=>`<p class="point-history">${esc(p.name)} · ${esc(names[p.status]||p.status)}${p.error?` · ${esc(p.error)}`:''}</p>`).join('')}</details>`:''}${t.state.task_point_limit?`<p class="field-help">本次限定 ${Number(t.state.task_point_limit)} 个任务点；课程完成度仍以平台回读为准。</p>`:''}</section>`;
+  return `<section class="point-queue"><div class="point-queue-top"><strong>任务点队列</strong><span>目标并发 ${limit} · 运行 ${rows.length}</span></div>${pointRestartHint()?'<p class="notice compact">'+pointRestartHint()+'</p>':''}${experimental?'<div class="notice compact experimental-notice">单课程多并发：试验性功能，不保证稳定</div>':''}<div class="point-concurrency-buttons">${Array.from($('#point-concurrency').options,o=>Number(o.value)).map(n=>`<button class="button ${n===limit?'primary':'secondary'}" data-action="point-limit" data-id="${t.id}" data-count="${n}" aria-label="单课程并发 ${n}" aria-pressed="${n===limit}" ${n===limit||n>pointMax()||!active.includes(t.status)?'disabled':''}>${n}${n===1?' · 串行':n===3?' · 推荐':''}</button>`).join('')}</div>${rows.length>limit?'<p class="field-help">正在等待已领取任务结束，再降至目标并发；不会中断或重新领取。</p>':''}<p class="field-help">并发数是执行上限；只有当前可领取的任务点才会占用位置。章节完成数以最近一次平台回读为准。</p>${t.state.platform_progress_at?`<p class="field-help">平台进度读取于 ${dateText(t.state.platform_progress_at)}${t.state.platform_progress_error?' · 刷新暂未成功，现有任务继续':''}</p>`:''}<div class="point-workers">${rows.map(p=>`<div class="point-worker"><strong>${esc(p.name)}</strong><small>${esc(p.chapter)} · PID ${Number(p.pid)} · ${esc(names[p.status]||p.status)}</small>${p.video_total?`<span>${Number(p.video_seconds)||0}/${Number(p.video_total)} 秒</span>${progress(p.video_progress)}`:''}</div>`).join('')}${!rows.length?'<p class="field-help">当前没有运行中的任务点。</p>':''}</div>${history.length?`<details><summary>本轮已处理 ${history.length} 个任务点</summary>${history.map(p=>`<p class="point-history">${esc(p.name)} · ${esc(names[p.status]||p.status)}${p.error?` · ${esc(p.error)}`:''}</p>`).join('')}</details>`:''}${t.state.task_point_limit?`<p class="field-help">本次限定 ${Number(t.state.task_point_limit)} 个任务点；课程完成度仍以平台回读为准。</p>`:''}</section>`;
 }
 
 function renderDetail() {
@@ -196,6 +206,9 @@ function render() {
   const d=state.data;
   if(!d.accounts.some(a=>a.id===state.account)) {state.account=d.accounts.find(a=>a.mode==='real')?.id||d.accounts[0]?.id||'';rememberAccount();}
   $('#nav-course-count').textContent=d.courses.filter(c=>c.account_id===state.account).length;$('#nav-task-count').textContent=d.tasks.filter(t=>active.includes(t.status)).length;
+  for(const option of $('#point-concurrency').options)option.disabled=Number(option.value)>pointMax();
+  const hint=$('#point-restart-hint');
+  hint.textContent=pointRestartHint();hint.classList.toggle('hidden',!hint.textContent);
   renderOverview();renderCourses();renderTasks();renderAccounts();renderDetail();renderCourseDetail();
   if(!runtimeSettingsDirty&&!$('#runtime-form').contains(document.activeElement)){$('#concurrency').value=d.concurrency;const select=$('#point-concurrency');select.value=d.point_concurrency??1;select.dataset.accepted=select.value;}
   if(!quizSettingsDirty&&!$('#quiz-settings-form').contains(document.activeElement)){for(const [field,value] of Object.entries(d.quiz)){const el=$(`#quiz-settings-form [name=${field}]`);if(!el)continue;if(el.multiple){[...el.options].forEach(o=>{o.selected=value.includes(o.value);});}else{el.value=String(value);}}renderQuizFields();}

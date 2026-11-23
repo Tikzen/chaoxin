@@ -424,7 +424,9 @@ def test_point_concurrency_routes_preserve_live_target_and_validate_bounds(clien
     from app.manager import payload_for
     server.manager.stop.set();server.manager.thread.join(timeout=3)
     _, course=demo(client)
-    assert client.get('/api/dashboard').json()['point_concurrency']==1
+    dashboard=client.get('/api/dashboard').json()
+    assert dashboard['point_concurrency']==1
+    assert dashboard['capabilities']['max_point_concurrency']==10
     for count in (0,11):
         assert client.post('/api/tasks',json={'course_ids':[course['id']],'point_concurrency':count}).status_code==422
         assert client.put('/api/settings',json={'concurrency':2,'point_concurrency':count}).status_code==422
