@@ -5,7 +5,7 @@
   <meta name="theme-color" content="#635bdb"><meta name="description" content="课栈：账号、课程与学习任务，一个简单的控制台。">
   <title>课栈 · 学习控制台</title>
   <link rel="icon" href="/static/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/style.css?v=0.6.4"><script defer src="/static/app.js?v=0.6.4"></script>
+  <link rel="stylesheet" href="/static/style.css?v=0.6.5"><script defer src="/static/app.js?v=0.6.5"></script>
 </head>
 <body>
 <svg class="symbols" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -38,6 +38,7 @@
     <a href="#accounts" data-view="accounts" aria-label="账号管理" class="nav-item"><svg><use href="#i-users"/></svg><span class="nav-label">账号管理</span></a>
     <div class="nav-divider"></div>
     <a href="#settings" data-view="settings" aria-label="运行设置" class="nav-item"><svg><use href="#i-settings"/></svg><span class="nav-label">运行设置</span></a>
+    <a id="nav-updates" href="#updates" data-view="updates" aria-label="检查更新" title="检查更新" class="nav-item"><svg aria-hidden="true"><use href="#i-refresh"/></svg><span class="nav-label">检查更新</span><span id="update-badge" class="update-badge hidden" aria-hidden="true">有更新</span></a>
   </nav>
   <div class="sidebar-bottom">
     <div class="private-note"><span class="mini-icon">↗</span><strong>在这台电脑 上运行</strong><p>私有空间，安心管理。<br>关掉网页，任务继续。</p><a href="#settings">查看运行设置 <span>→</span></a></div>
@@ -76,7 +77,20 @@
 <label>自动恢复次数上限（每个任务点／连接故障）<input type="number" name="max_retries" min="1" max="20"></label>
 <label>首次延迟重试间隔（秒）<input type="number" name="retry_delay" min="1" max="900"></label>
 <p class="field-help">请求次数按每道题、每个来源计算，AI 同样受此上限约束。失败任务点默认最多独立恢复 6 次，间隔递增至 15 分钟，其他点继续执行；达到上限的点隔离待处理，后台只读检查平台状态，不反复消耗 AI。登录或验证码仍需手动处理。已校验格式的答案缓存复用，题目或选项变化后失效。交卷响应不明确时只查记录，不重复提交，不自动重做已提交测验。配置在下次启动任务或自动重试时生效。</p>
-<p id="ai-readiness" class="field-help"></p><button class="button secondary" type="button" id="quiz-test-ai">测试 AI 连接</button><p id="quiz-test-result" class="field-help" role="status"></p><button class="button primary" type="submit">保存答题设置</button><span id="quiz-config-status" class="field-help"></span></form></section><section class="panel settings-card"><h2>版本更新</h2><p id="update-result" role="status">可从 GitHub 检查正式版本。</p><button class="button secondary" id="update-check">检查更新</button> <button class="button primary hidden" id="update-install">更新并重启</button></section></div></section>
+<p id="ai-readiness" class="field-help"></p><button class="button secondary" type="button" id="quiz-test-ai">测试 AI 连接</button><p id="quiz-test-result" class="field-help" role="status"></p><button class="button primary" type="submit">保存答题设置</button><span id="quiz-config-status" class="field-help"></span></form></section></div></section>
+    <section id="view-updates" class="view hidden">
+      <section class="panel settings-card updates-card">
+        <div class="setting-icon"><svg aria-hidden="true"><use href="#i-refresh"/></svg></div>
+        <h2>版本与下载</h2>
+        <p id="update-result" role="status">打开控制台后会自动检查一次。</p>
+        <div class="update-actions">
+          <a id="update-download" class="button primary hidden" target="_blank" rel="noopener noreferrer">下载 Windows 绿色版</a>
+          <button id="update-install" class="button secondary hidden" type="button">一键更新并重启</button>
+          <button id="update-check" class="button secondary" type="button">重新检查</button>
+          <a id="update-release" class="text-link hidden" target="_blank" rel="noopener noreferrer">查看 GitHub 发布页 ↗</a>
+        </div>
+      </section>
+    </section>
   </main>
 </div>
 <dialog id="auth-dialog" class="auth-dialog"><div class="auth-logo"><img src="/static/mark.svg" alt="">课栈</div><div class="eyebrow">你的私人学习工作空间</div><h2>欢迎回来。</h2><p>输入本地启动窗口中的访问口令，<br>打开你的课程控制台。</p><form id="auth-form"><label>访问口令<input name="token" type="password" required placeholder="粘贴控制台访问口令" autocomplete="current-password" autofocus></label><div id="auth-error" class="form-error" role="alert"></div><button class="button primary" type="submit">进入工作空间 <svg><use href="#i-arrow"/></svg></button></form><small>首次使用？Windows 双击 Chaoxin.exe；Mac 双击「启动课栈.command」。<br>口令也保存在本机的 .data/access-token 文件中。</small></dialog>

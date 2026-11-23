@@ -41,8 +41,8 @@ function timeText(date) {return new Date(date).toLocaleTimeString('zh-CN',{hour:
 
 function navigate() {
   const view=location.hash.slice(1)||'overview';
-  state.view=['overview','courses','tasks','accounts','settings'].includes(view)?view:'overview';
-  const meta={overview:['学习概览','你的学习，一目了然','在这台电脑 管理账号、课程和后台任务。'],courses:['我的课程','当前账号的学习空间','切换账号加载对应课程，进入课程即可开始学习。'],tasks:['运行任务','所有账号的任务，一处查看','各账号独立异步运行，可按账号、课程和状态筛选。'],accounts:['账号管理','所有账号，一处管理','保存学习通账号，选择账号即可进入对应课程。'],settings:['运行设置','本地运行','设置全局并发数，在本机持续执行学习任务。']}[state.view];
+  state.view=['overview','courses','tasks','accounts','settings','updates'].includes(view)?view:'overview';
+  const meta={overview:['学习概览','你的学习，一目了然','在这台电脑 管理账号、课程和后台任务。'],courses:['我的课程','当前账号的学习空间','切换账号加载对应课程，进入课程即可开始学习。'],tasks:['运行任务','所有账号的任务，一处查看','各账号独立异步运行，可按账号、课程和状态筛选。'],accounts:['账号管理','所有账号，一处管理','保存学习通账号，选择账号即可进入对应课程。'],settings:['运行设置','本地运行','设置全局并发数，在本机持续执行学习任务。'],updates:['检查更新','版本与下载','查看当前版本，获取 GitHub 上发布的正式版。']}[state.view];
   $('#page-title').innerHTML=`${meta[0]}<span class="title-dot">.</span>`;$('#breadcrumb-title').textContent=meta[0];$('#page-eyebrow').textContent=meta[1];$('#page-description').textContent=meta[2];
   $$('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.view===state.view));
   $$('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${state.view}`));
@@ -206,7 +206,7 @@ async function refresh(quiet=false) {
     if(version!==refreshVersion)return true;
     state.data=data;state.authenticated=true;$('#connection-label').textContent='本地应用运行中';$('#connection-light').classList.remove('offline');$('#connection-error').classList.add('hidden');render();
     if(!firstLoaded){firstLoaded=true;$('.version').textContent='v'+state.data.version;
-      if(state.data.capabilities?.portable_updates)checkUpdates();if(state.account)loadAccountCourses(state.account).catch(error=>toast(error.message,true));}
+      checkUpdates(true);if(state.account)loadAccountCourses(state.account).catch(error=>toast(error.message,true));}
     return true;
   } catch(error) {
     if(version!==refreshVersion)return false;
@@ -345,23 +345,37 @@ $('#quiz-test-ai').addEventListener('click',event=>perform(event.currentTarget,a
 }));
 
 let offeredVersion = null;
-async function checkUpdates(){
+function updateLink(id, url) {
+  const link=$(id);
+  if(url) link.href=url; else link.removeAttribute('href');
+  link.classList.toggle('hidden',!url);
+}
+async function checkUpdates(automatic=false){
   const check=$('#update-check'), install=$('#update-install'), result=$('#update-result');
-  check.disabled=true;install.classList.add('hidden');offeredVersion=null;result.textContent='正在检查 GitHub Release…';
+  if(check.disabled)return;
+  check.disabled=true;install.disabled=true;
+  result.textContent='正在检查 GitHub 上的正式版本…';
   try {
     const r=await api('/updates/check');
+    const available=Boolean(r.update_available);
+    const nav=$('#nav-updates');
+    nav.title=available?'检查更新：有可用更新 '+r.latest_version:'检查更新';
+    nav.setAttribute('aria-label',nav.title);
+    $('#update-badge').classList.toggle('hidden',!available);
+    updateLink('#update-release',r.release_url);
+    updateLink('#update-download',r.download_url);
+    offeredVersion=available && r.asset_available && state.data.capabilities?.portable_updates ? r.latest_version : null;
+    install.classList.toggle('hidden',!offeredVersion);
     if(!r.latest_version) result.textContent='当前 v'+r.current_version+'；仓库尚未发布正式版本。';
-    else if(!r.update_available) result.textContent='当前已是最新版本：v'+r.current_version;
+    else if(!available) result.textContent='当前已是最新版本：v'+r.current_version+'。';
     else {
-      result.textContent='当前 v'+r.current_version+'，发现 '+r.latest_version+'。';
-      if(r.asset_available && state.data.capabilities?.portable_updates){
-        offeredVersion=r.latest_version;install.classList.remove('hidden');
-      }else result.textContent+=r.asset_available?' 源码版请从仓库更新。':' 暂无可安装的 Windows 包。';
+      result.textContent='有可用更新：'+r.latest_version+'（当前 v'+r.current_version+'）。'+(r.download_url?'':' 可在发布页查看可用下载。');
+      if(automatic && state.view!=='updates')toast('有可用更新 '+r.latest_version+'，点击左侧「检查更新」即可下载。');
     }
-  }catch(error){result.textContent=error.message;}
-  finally{check.disabled=false;}
+  }catch(error){result.textContent='检查失败：'+error.message+'。可点击「重新检查」。';}
+  finally{check.disabled=false;install.disabled=false;}
 }
-$('#update-check').onclick=checkUpdates;
+$('#update-check').onclick=()=>checkUpdates();
 $('#update-install').onclick=async()=>{
   if(!offeredVersion)return;
   const result=$('#update-result'), check=$('#update-check'), install=$('#update-install');

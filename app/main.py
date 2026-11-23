@@ -538,7 +538,15 @@ def check_updates():
         release = updater.check_release()
     except requests.RequestException:
         raise HTTPException(502, "无法连接 GitHub，请稍后重试") from None
-    return {key: release.get(key) for key in ("current_version", "latest_version", "update_available", "asset_available")}
+    result = {key: release.get(key) for key in ("current_version", "latest_version", "update_available", "asset_available")}
+    tag = result["latest_version"]
+    if tag:
+        base = f"https://github.com/{release['repository']}/releases"
+        result["release_url"] = f"{base}/tag/{tag}"
+        download = f"{base}/download/{tag}/{updater.ASSET_NAME}"
+        if release.get("download_url") == download:
+            result["download_url"] = download
+    return result
 
 
 class UpdateBody(BaseModel):
