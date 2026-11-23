@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app import store, updater
 from app.manager import ACTIVE, manager, public_task, update_task
-from app.runtime import worker_command
+from app.runtime import MAX_POINT_CONCURRENCY, worker_command
 
 
 @asynccontextmanager
@@ -315,7 +315,7 @@ def demo(new_account: bool = False):
 class TaskBody(BaseModel):
     course_ids: list[str] = Field(min_length=1, max_length=20)
     engine: str = "server"
-    point_concurrency: int | None = Field(default=None, ge=1, le=3)
+    point_concurrency: int | None = Field(default=None, ge=1, le=MAX_POINT_CONCURRENCY)
     task_point_limit: int | None = Field(default=None, ge=1, le=100)
 
 
@@ -378,11 +378,11 @@ def control_task(task_id: str, body: ControlBody):
 
 class SettingsBody(BaseModel):
     concurrency: int = Field(ge=1, le=8)
-    point_concurrency: int | None = Field(default=None, ge=1, le=3)
+    point_concurrency: int | None = Field(default=None, ge=1, le=MAX_POINT_CONCURRENCY)
 
 
 class PointConcurrencyBody(BaseModel):
-    concurrency: int = Field(ge=1, le=3)
+    concurrency: int = Field(ge=1, le=MAX_POINT_CONCURRENCY)
 
 
 def set_point_concurrency(task, count):

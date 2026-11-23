@@ -14,6 +14,7 @@ const accountLoadPromises = new Map();
 let refreshVersion = 0;
 let firstLoaded = false;
 let quizSettingsDirty = false;
+let runtimeSettingsDirty = false;
 const courseDetails=new Map();
 const courseDetailLoads=new Map();
 const answerDrafts=new Map();
@@ -168,12 +169,16 @@ function quizForm(t) {
 }
 
 
+function confirmPointConcurrency(count) {
+  return count <= 3 || window.confirm(`单课程并发推荐设置为 3，当前选择为 ${count}。\n过高的并发暂未实测可用性，可能导致意外问题，请谨慎开启。`);
+}
+
 function pointQueue(t) {
   if(!t.state.point_concurrency)return '';
   const limit=Number(t.state.point_concurrency)||1;const rows=t.state.active_points||[];const history=t.state.point_history||[];
   const experimental=limit>1||Number(t.state.point_peak)>1;
   const names={processed:'执行结束 · 待平台确认',completed:'平台已确认完成',running:'运行中',waiting_answer:'待答题',retry_wait:'等待重试',blocked:'已隔离 · 需处理',attention:'需处理',failed:'执行失败'};
-  return `<section class="point-queue"><div class="point-queue-top"><strong>任务点队列</strong><span>目标并发 ${limit} · 运行 ${rows.length}</span></div>${experimental?'<div class="notice compact experimental-notice">单课程多并发：试验性功能，不保证稳定</div>':''}<div class="point-concurrency-buttons">${[1,2,3].map(n=>`<button class="button ${n===limit?'primary':'secondary'}" data-action="point-limit" data-id="${t.id}" data-count="${n}" ${!active.includes(t.status)?'disabled':''}>${n} ${n===1?'串行':'并发 · 试验性'}</button>`).join('')}</div>${rows.length>limit?'<p class="field-help">正在等待已领取任务结束，再降至目标并发；不会中断或重新领取。</p>':''}<p class="field-help">并发数是执行上限；只有当前可领取的任务点才会占用位置。章节完成数以最近一次平台回读为准。</p>${t.state.platform_progress_at?`<p class="field-help">平台进度读取于 ${dateText(t.state.platform_progress_at)}${t.state.platform_progress_error?' · 刷新暂未成功，现有任务继续':''}</p>`:''}<div class="point-workers">${rows.map(p=>`<div class="point-worker"><strong>${esc(p.name)}</strong><small>${esc(p.chapter)} · PID ${Number(p.pid)} · ${esc(names[p.status]||p.status)}</small>${p.video_total?`<span>${Number(p.video_seconds)||0}/${Number(p.video_total)} 秒</span>${progress(p.video_progress)}`:''}</div>`).join('')}${!rows.length?'<p class="field-help">当前没有运行中的任务点。</p>':''}</div>${history.length?`<details><summary>本轮已处理 ${history.length} 个任务点</summary>${history.map(p=>`<p class="point-history">${esc(p.name)} · ${esc(names[p.status]||p.status)}${p.error?` · ${esc(p.error)}`:''}</p>`).join('')}</details>`:''}${t.state.task_point_limit?`<p class="field-help">本次限定 ${Number(t.state.task_point_limit)} 个任务点；课程完成度仍以平台回读为准。</p>`:''}</section>`;
+  return `<section class="point-queue"><div class="point-queue-top"><strong>任务点队列</strong><span>目标并发 ${limit} · 运行 ${rows.length}</span></div>${experimental?'<div class="notice compact experimental-notice">单课程多并发：试验性功能，不保证稳定</div>':''}<div class="point-concurrency-buttons">${Array.from($('#point-concurrency').options,o=>Number(o.value)).map(n=>`<button class="button ${n===limit?'primary':'secondary'}" data-action="point-limit" data-id="${t.id}" data-count="${n}" aria-label="单课程并发 ${n}" aria-pressed="${n===limit}" ${n===limit||!active.includes(t.status)?'disabled':''}>${n}${n===1?' · 串行':n===3?' · 推荐':''}</button>`).join('')}</div>${rows.length>limit?'<p class="field-help">正在等待已领取任务结束，再降至目标并发；不会中断或重新领取。</p>':''}<p class="field-help">并发数是执行上限；只有当前可领取的任务点才会占用位置。章节完成数以最近一次平台回读为准。</p>${t.state.platform_progress_at?`<p class="field-help">平台进度读取于 ${dateText(t.state.platform_progress_at)}${t.state.platform_progress_error?' · 刷新暂未成功，现有任务继续':''}</p>`:''}<div class="point-workers">${rows.map(p=>`<div class="point-worker"><strong>${esc(p.name)}</strong><small>${esc(p.chapter)} · PID ${Number(p.pid)} · ${esc(names[p.status]||p.status)}</small>${p.video_total?`<span>${Number(p.video_seconds)||0}/${Number(p.video_total)} 秒</span>${progress(p.video_progress)}`:''}</div>`).join('')}${!rows.length?'<p class="field-help">当前没有运行中的任务点。</p>':''}</div>${history.length?`<details><summary>本轮已处理 ${history.length} 个任务点</summary>${history.map(p=>`<p class="point-history">${esc(p.name)} · ${esc(names[p.status]||p.status)}${p.error?` · ${esc(p.error)}`:''}</p>`).join('')}</details>`:''}${t.state.task_point_limit?`<p class="field-help">本次限定 ${Number(t.state.task_point_limit)} 个任务点；课程完成度仍以平台回读为准。</p>`:''}</section>`;
 }
 
 function renderDetail() {
@@ -192,7 +197,7 @@ function render() {
   if(!d.accounts.some(a=>a.id===state.account)) {state.account=d.accounts.find(a=>a.mode==='real')?.id||d.accounts[0]?.id||'';rememberAccount();}
   $('#nav-course-count').textContent=d.courses.filter(c=>c.account_id===state.account).length;$('#nav-task-count').textContent=d.tasks.filter(t=>active.includes(t.status)).length;
   renderOverview();renderCourses();renderTasks();renderAccounts();renderDetail();renderCourseDetail();
-  if(!$('#runtime-form').contains(document.activeElement)){$('#concurrency').value=d.concurrency;$('#point-concurrency').value=d.point_concurrency??1;}
+  if(!runtimeSettingsDirty&&!$('#runtime-form').contains(document.activeElement)){$('#concurrency').value=d.concurrency;const select=$('#point-concurrency');select.value=d.point_concurrency??1;select.dataset.accepted=select.value;}
   if(!quizSettingsDirty&&!$('#quiz-settings-form').contains(document.activeElement)){for(const [field,value] of Object.entries(d.quiz)){const el=$(`#quiz-settings-form [name=${field}]`);if(!el)continue;if(el.multiple){[...el.options].forEach(o=>{o.selected=value.includes(o.value);});}else{el.value=String(value);}}renderQuizFields();}
   $('#ai-readiness').textContent=state.data.answer_sources?.ai_ready?'AI 兜底已就绪；当前有效顺序：'+state.data.answer_sources.chain.join(' → '):'AI 兜底尚未配置。当前仅使用可用题库，缺题时会延迟重试；填写上方 AI 配置并测试连接后保存。';
   $('#quiz-config-status').textContent=Object.values(d.quiz_secrets).some(Boolean)?'凭据已加密保存':'';
@@ -285,7 +290,7 @@ document.addEventListener('click',async event=>{
       if(!confirm('删除此账号及其课程、历史任务？运行中的任务需先停止。'))return;
       await api(`/accounts/${id}`,{method:'DELETE'});await refresh();toast('账号及本机记录已删除');
     }
-    if(action==='point-limit'){await api(`/tasks/${id}/point-concurrency`,{method:'PUT',body:JSON.stringify({concurrency:Number(button.dataset.count)})});await refresh();toast('并发已调整；已领取的任务继续，后续按新上限派发');}
+    if(action==='point-limit'){if(!confirmPointConcurrency(Number(button.dataset.count)))return;await api(`/tasks/${id}/point-concurrency`,{method:'PUT',body:JSON.stringify({concurrency:Number(button.dataset.count)})});await refresh();toast('并发已调整；已领取的任务继续，后续按新上限派发');}
     if(action==='control'){await post(`/tasks/${id}/control`,{action:button.dataset.control});await refresh();toast({pause:'已请求暂停，将在下一个检查点生效',run:'任务已继续',cancel:'已请求停止任务'}[button.dataset.control]);}
     if(action==='retry-now'){await post(`/tasks/${id}/retry-now`);await refresh();toast('已立即重新排队；有空闲运行位置后开始');}
     if(action==='retry'){const t=state.data.tasks.find(t=>t.id===id);await startCourses([t.course_id]);$('#task-dialog').close();}
@@ -305,7 +310,12 @@ $('#course-dialog').addEventListener('close',()=>{state.courseDetail=null;});
 $('#auth-form').addEventListener('submit',async event=>{event.preventDefault();const b=$('button',event.currentTarget);b.disabled=true;$('#auth-error').textContent='';try{await post('/auth',Object.fromEntries(new FormData(event.currentTarget)));$('#auth-form').reset();$('#auth-dialog').close();await refresh();}catch(error){$('#auth-error').textContent=error.message;}finally{b.disabled=false;}});
 $('#account-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const b=$('button[type=submit]',form);b.disabled=true;$('#account-error').textContent='';try{const a=await post('/accounts',Object.fromEntries(new FormData(form)));form.reset();$('#account-dialog').close();await refresh();await switchAccount(a.id);toast('账号已保存，正在加载课程');}catch(error){$('#account-error').textContent=error.message;}finally{b.disabled=false;}});
 $('#password-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;const values=Object.fromEntries(new FormData(form));perform($('button[type=submit]',form),async()=>{await api(`/accounts/${values.accountId}`,{method:'PATCH',body:JSON.stringify({password:values.password})});form.reset();$('#password-dialog').close();await refresh();toast('密码已更新，请重新同步课程');});});
-$('#runtime-form').addEventListener('submit',event=>{event.preventDefault();perform($('button',event.currentTarget),async()=>{await api('/settings',{method:'PUT',body:JSON.stringify({concurrency:Number($('#concurrency').value),point_concurrency:Number($('#point-concurrency').value)})});await refresh();toast('运行设置已保存');});});
+$('#point-concurrency').addEventListener('change',({target})=>{
+  if(confirmPointConcurrency(Number(target.value))){target.dataset.accepted=target.value;runtimeSettingsDirty=true;}
+  else target.value=target.dataset.accepted??String(state.data?.point_concurrency??1);
+});
+$('#concurrency').addEventListener('change',()=>{runtimeSettingsDirty=true;});
+$('#runtime-form').addEventListener('submit',event=>{event.preventDefault();perform($('button',event.currentTarget),async()=>{await api('/settings',{method:'PUT',body:JSON.stringify({concurrency:Number($('#concurrency').value),point_concurrency:Number($('#point-concurrency').value)})});runtimeSettingsDirty=false;await refresh();toast('运行设置已保存');});});
 $('#logout').addEventListener('click',event=>perform(event.currentTarget,async()=>{await post('/logout');state.authenticated=false;openAuth();}));
 navigate();refresh(true);setInterval(()=>{if(state.authenticated&&!document.hidden)refresh(true);},2500);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.authenticated)refresh(true);});

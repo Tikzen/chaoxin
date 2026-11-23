@@ -1,4 +1,4 @@
-"""FIFO point scheduling with 1–3 live slots and isolated child processes."""
+"""FIFO point scheduling with adjustable live slots and isolated child processes."""
 import json
 import os
 import re
@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 from app import store
-from app.runtime import worker_command, worker_popen_options
+from app.runtime import MAX_POINT_CONCURRENCY, worker_command, worker_popen_options
 from app.point_queue import PointLedger, point_key
 from app.retry import RetryNeeded, WorkUnavailable, PointRecoveryNeeded
 from datetime import datetime, timezone
@@ -124,7 +124,8 @@ class PointPool:
         self.active = {}
         self.finished = {}
         self.owner = uuid.uuid4().hex
-        self.limit = int(payload.get('point_concurrency', 1))
+        initial = payload.get('point_concurrency', 1)
+        self.limit = initial if type(initial) is int and 1 <= initial <= MAX_POINT_CONCURRENCY else 1
         self.runtime = Path(payload.get('runtime_path', self.root / 'runtime.json'))
         self.started = 0
         self.peak = int(payload.get('previous_state', {}).get('point_peak', 0))
@@ -136,7 +137,7 @@ class PointPool:
     def slots(self):
         config = store.read_json(self.runtime, {})
         value = config.get('point_concurrency', self.limit)
-        if isinstance(value, int) and 1 <= value <= 3:
+        if type(value) is int and 1 <= value <= MAX_POINT_CONCURRENCY:
             self.limit = value
         return self.limit
 

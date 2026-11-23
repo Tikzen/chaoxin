@@ -4,6 +4,9 @@ import sys
 from pathlib import Path
 
 
+MAX_POINT_CONCURRENCY = 10
+
+
 def resource_root():
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS).resolve()

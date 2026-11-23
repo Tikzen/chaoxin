@@ -65,13 +65,14 @@ def test_real_process_fifo_has_exact_slot_count_and_no_duplicates(tmp_path,count
     finally:cleanup(process)
 
 
-def test_resize_three_two_one_and_back_does_not_restart_claimed_points(tmp_path):
-    process,_=launch(tmp_path,1,total=9)
+@pytest.mark.parametrize('high,total', [(3,9),(10,16)])
+def test_live_resize_does_not_restart_claimed_points(tmp_path,high,total):
+    process,_=launch(tmp_path,1,total=total)
     try:
         wait_until(lambda:state(tmp_path).get('active_point_count')==1)
         first=state(tmp_path)['active_points'][0]['pid']
-        store.write_json(tmp_path/'runtime.json',{'point_concurrency':3})
-        wait_until(lambda:state(tmp_path).get('active_point_count')==3)
+        store.write_json(tmp_path/'runtime.json',{'point_concurrency':high})
+        wait_until(lambda:state(tmp_path).get('active_point_count')==high)
         initial={p['pid'] for p in state(tmp_path)['active_points']}
         assert first in initial
         for count in (2,1):
@@ -90,9 +91,9 @@ def test_resize_three_two_one_and_back_does_not_restart_claimed_points(tmp_path)
         wait_until(lambda:process.poll() is not None,timeout=30)
         value=state(tmp_path)
         assert value['status']=='completed',value
-        assert len(value['point_history'])==9
-        assert len({p['id'] for p in value['point_history']})==9
-        assert len({p['pid'] for p in value['point_history']})==9
+        assert len(value['point_history'])==total
+        assert len({p['id'] for p in value['point_history']})==total
+        assert len({p['pid'] for p in value['point_history']})==total
     finally:cleanup(process)
 
 

@@ -425,18 +425,21 @@ def test_point_concurrency_routes_preserve_live_target_and_validate_bounds(clien
     server.manager.stop.set();server.manager.thread.join(timeout=3)
     _, course=demo(client)
     assert client.get('/api/dashboard').json()['point_concurrency']==1
-    response=client.post('/api/tasks',json={'course_ids':[course['id']],'point_concurrency':3,'task_point_limit':3})
+    for count in (0,11):
+        assert client.post('/api/tasks',json={'course_ids':[course['id']],'point_concurrency':count}).status_code==422
+        assert client.put('/api/settings',json={'concurrency':2,'point_concurrency':count}).status_code==422
+    response=client.post('/api/tasks',json={'course_ids':[course['id']],'point_concurrency':10,'task_point_limit':3})
     task_id=response.json()['task_ids'][0]
-    for count in (2,1,3):
+    for count in (2,10,4,1,3):
         assert client.put(f'/api/tasks/{task_id}/point-concurrency',json={'concurrency':count}).status_code==200
         assert payload_for(store.one('SELECT * FROM tasks WHERE id=?',(task_id,)))['point_concurrency']==count
-    for count in (0,4):
+    for count in (0,11):
         assert client.put(f'/api/tasks/{task_id}/point-concurrency',json={'concurrency':count}).status_code==422
     # An old worker state file cannot erase the latest runtime target on retry.
     value=task(client,task_id)['state'];value['point_concurrency']=1;update_task(task_id,value)
     assert payload_for(store.one('SELECT * FROM tasks WHERE id=?',(task_id,)))['point_concurrency']==3
-    assert client.put('/api/settings',json={'concurrency':2,'point_concurrency':2}).status_code==200
-    assert payload_for(store.one('SELECT * FROM tasks WHERE id=?',(task_id,)))['point_concurrency']==2
+    assert client.put('/api/settings',json={'concurrency':2,'point_concurrency':10}).status_code==200
+    assert payload_for(store.one('SELECT * FROM tasks WHERE id=?',(task_id,)))['point_concurrency']==10
     update_task(task_id,{'status':'completed','point_concurrency':2})
     assert client.put(f'/api/tasks/{task_id}/point-concurrency',json={'concurrency':1}).status_code==409
 
