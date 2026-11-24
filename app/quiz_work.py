@@ -63,6 +63,34 @@ def work_block_reason(html):
     return next((reason for reason in ("已截止，不能作答", "已截止，不能提交", "此作业已过期", "已达到最大提交次数") if reason in text), None)
 
 
+def redo_remaining(html):
+    """Read an explicitly displayed remaining redo count; unknown stays None."""
+    soup = BeautifulSoup(html, "lxml")
+    labels = [element.get_text(" ", strip=True)
+              for element in soup.select("button,a,[role='button']")
+              if "重做" in element.get_text() or "再做" in element.get_text()]
+    for label in labels:
+        match = re.search(r"(?:剩余|还可|可再)\s*[:：]?\s*(\d+)\s*次", label)
+        if match:
+            return int(match.group(1))
+    visible = " ".join(soup.stripped_strings)
+    match = re.search(r"(?:重做|再做)[^。；;]{0,60}?(?:剩余|还可|可再)\s*[:：]?\s*(\d+)\s*次", visible)
+    if match:
+        return int(match.group(1))
+    if "已达到最大提交次数" in visible:
+        return 0
+    return None
+
+
+def record_detail(session, course, info, form, attempt):
+    return session.get("https://mooc1.chaoxing.com/mooc-ans/work/record-detail", params={
+        "courseId": course["courseId"], "classId": course["clazzId"], "workId": form["workId"],
+        "workAnswerId": form.get("workAnswerId", ""), "cpi": course.get("cpi") or info.get("cpi", ""),
+        "times": str(max(0, attempt - 1)), "api": "1", "mooc2": "1", "ut": "s",
+        "isdisplaytable": "0", "firstHeader": "2", "isWork": "false", "workSystem": "0", "archive": "false"},
+        timeout=(10, 25))
+
+
 def record_is_submitted(session, course, info, form, attempt):
     response = session.get("https://mooc1.chaoxing.com/mooc-ans/work/record-detail", params={
         "courseId": course["courseId"], "classId": course["clazzId"], "workId": form["workId"],
@@ -209,7 +237,18 @@ def execute_work(client, course, job, info, reporter):
         attempt, score = max(found, key=lambda record: record[0])
         confirmed = {**entry, "phase": "confirmed", "score": score}
         journal.save(key, confirmed)
-        reporter.update(quiz_result={"status": "submitted", "score": score})
+        remaining = None
+        # Existing, explicitly authorized redo flow reads this same detail page
+        # below; avoid an extra request before it obtains the feedback.
+        if not (permits and permits.available(key, attempt)):
+            try:
+                detail = record_detail(session, course, info, form, attempt)
+                detail.raise_for_status()
+                remaining = redo_remaining(detail.text)
+            except Exception:
+                reporter.log("平台重做次数暂不可读取；成绩记录已确认", "warning")
+        reporter.update(quiz_result={"status": "submitted", "score": score, "attempt": attempt,
+                                     "redo_remaining": remaining})
         if permits and score is not None and score < 99.95 and permits.available(key, attempt):
             redo_from = {'attempt': attempt, 'score': score, 'prior_submission': confirmed}
             reporter.log(f'平台正式成绩 {score} 分、任务点仍待完成；按用户授权准备额外重做一次')

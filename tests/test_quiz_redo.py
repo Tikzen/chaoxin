@@ -7,11 +7,17 @@ import requests
 
 from app import quiz_codec as codec, worker
 from app.quiz_redo import RedoPermits
-from app.quiz_work import Journal, execute_work
+from app.quiz_work import Journal, execute_work, redo_remaining
 from app.question_dom import feedback_answers
 from app.retry import RetryNeeded, WorkUnavailable
 
 BASE = (Path(__file__).parent / 'fixtures/work-five-types.html').read_text()
+
+
+def test_reads_only_explicit_remaining_redo_count():
+    assert redo_remaining('<button>重做（剩余 100 次）</button>') == 100
+    assert redo_remaining('<button>重做（剩余0次）</button>') == 0
+    assert redo_remaining('<div>重做</div>') is None
 
 
 def shuffled_html():

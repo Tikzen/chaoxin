@@ -197,7 +197,8 @@ class PointPool:
             if successful and (self.payload['mode'] == 'demo' or state.get('platform_point_completed') is True):
                 self.ledger.complete(key)
             self.finished[key] = {**item['unit'], 'status': 'processed' if successful else status, 'error': '' if successful else error,
-                                  'pid': process.pid, 'ended_at': state.get('updated_at')}
+                                  'pid': process.pid, 'ended_at': state.get('updated_at'),
+                                  'quiz_result': state.get('quiz_result')}
             del self.active[key]
             self.completed_attempts += 1
             (path / 'cookies.txt').unlink(missing_ok=True)
@@ -217,7 +218,8 @@ class PointPool:
                          'status': state.get('status', 'running'), 'pid': item['process'].pid,
                          'video_progress': state.get('video_progress', 0), 'video_seconds': state.get('video_seconds', 0),
                          'video_total': state.get('video_total', 0), 'started_at': state.get('started_at'),
-                         'answer_progress': state.get('answer_progress'), 'error': state.get('error')})
+                         'answer_progress': state.get('answer_progress'), 'error': state.get('error'),
+                         'quiz_result': state.get('quiz_result')})
             if state.get('pending_quiz'):
                 pending.append({**state['pending_quiz'], 'unit_id': key})
         old = (self.reporter.state.get('pending_quiz') or {}).get('id')
@@ -225,7 +227,8 @@ class PointPool:
         history = dict(self.prior_history)
         for key, unit in self.finished.items():
             history[key] = {'id': key, 'name': unit['name'], 'chapter': unit['point']['title'],
-                            'status': unit['status'], 'pid': unit['pid'], 'error': unit['error']}
+                            'status': unit['status'], 'pid': unit['pid'], 'error': unit['error'],
+                            'quiz_result': unit.get('quiz_result')}
         for key, row in history.items():
             if (self.ledger.get(key) or {}).get('status') == 'completed':
                 row['status'] = 'completed'

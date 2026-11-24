@@ -145,7 +145,8 @@ def test_submit_verifies_record_and_never_uses_draft(tmp_path, monkeypatch):
     session.post.return_value = response()
     assert execute_work(client, *args).is_success()
     assert session.post.call_args.kwargs['data']['pyFlag'] == ''
-    assert args[-1].state['quiz_result'] == {'status': 'submitted', 'score': 80.0}
+    assert args[-1].state['quiz_result'] == {'status': 'submitted', 'score': 80.0,
+                                               'attempt': 1, 'redo_remaining': None}
     # New worker / retry, same persistent journal: verify only, never resubmit.
     session.get.side_effect = None
     session.get.return_value = response(RECORD)
